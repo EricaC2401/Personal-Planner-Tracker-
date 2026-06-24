@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habits Tracker</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f4f6fb;color:#1a1f2e}
+
+/* ── TOPBAR ── */
+.topbar{background:#fff;border-bottom:1px solid #e8ecf4;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-icon{width:28px;height:28px;background:#534AB7;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon i{font-size:15px;color:#fff}
+.logo-text{font-size:14px;font-weight:600;color:#1a1f2e}
+.period-hint{font-size:11px;color:#8492a6;padding-left:12px;border-left:1px solid #e8ecf4}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.seg-control{display:flex;border:1px solid #e0e4ef;border-radius:8px;overflow:hidden}
+.seg-btn{padding:5px 14px;font-size:12px;cursor:pointer;background:#fff;color:#5a6478;border:none;border-right:1px solid #e0e4ef;font-family:inherit;display:flex;align-items:center;gap:5px}
+.seg-btn:last-child{border-right:none}
+.seg-btn.active{background:#EEEDFE;color:#534AB7;font-weight:500}
+.btn-primary{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:1px solid #534AB7;background:#534AB7;color:#fff;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
+.btn-primary:hover{background:#3C3489}
+
+/* ── CONTENT ── */
+.content{padding:18px 22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:calc(100vh - 53px)}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.mc{background:#fff;border-radius:11px;padding:15px 17px;border:1px solid #e8ecf4}
+.mc-label{font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:#8492a6;margin-bottom:5px}
+.mc-value{font-size:21px;font-weight:700;color:#1a1f2e;line-height:1.1}
+.mc-sub{font-size:11px;color:#8492a6;margin-top:3px}
+
+/* ── CARD ── */
+.card{background:#fff;border-radius:11px;border:1px solid #e8ecf4}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#8492a6;display:flex;align-items:center;gap:6px}
+.card-title i{font-size:14px}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table.data-tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.data-tbl thead tr{border-bottom:1px solid #e8ecf4;background:#f8fafc}
+table.data-tbl th{padding:9px 12px;text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#8492a6;white-space:nowrap}
+table.data-tbl td{padding:9px 12px;color:#1a1f2e;border-bottom:1px solid #f3f4f8;vertical-align:middle}
+table.data-tbl tr:last-child td{border-bottom:none}
+table.data-tbl tr:hover td{background:#fafbfd}
+
+/* ── DONE BTN ── */
+.done-btn{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:4px 11px;border-radius:6px;border:1px solid #d0d5e0;background:#fff;color:#5a6478;cursor:pointer;font-family:inherit;white-space:nowrap}
+.done-btn:hover{background:#f4f6fb}
+.done-btn.is-done{background:#eaf3de;color:#3B6D11;border-color:#C0DD97;font-weight:500}
+.done-btn.is-done:hover{background:#C0DD97}
+
+/* ── WEEK DOTS ── */
+.week-col{display:flex;flex-direction:column;gap:3px}
+.week-lbl-row{display:flex;gap:3px}
+.wl{width:16px;font-size:9px;text-align:center;color:#b0b8cc}
+.week-dots{display:flex;gap:3px}
+.wd{width:16px;height:16px;border-radius:4px;background:#f0f1f5;border:1px solid #e4e7ef;cursor:pointer;transition:background 0.1s;flex-shrink:0}
+.wd:hover:not(.wdf){background:#e0e3ec}
+.wd.wdd{background:#639922;border-color:#639922}
+.wd.wdt{border-color:#534AB7}
+.wd.wdf{opacity:0.35;cursor:default}
+
+/* ── STREAK ── */
+.streak-cell{display:flex;align-items:center;gap:5px;white-space:nowrap;font-weight:600}
+.streak-cell .lbl{font-weight:400;color:#8492a6}
+
+/* ── CHIP ── */
+.chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:8px;font-weight:600;font-size:11px;white-space:nowrap;border:1px solid}
+
+/* ── CALENDAR CARDS ── */
+.cal-grid-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:17px}
+.hcard{background:#fff;border-radius:11px;padding:14px 15px;border:1px solid #e8ecf4}
+.hcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px}
+.hcard-title{font-size:12.5px;font-weight:600;color:#1a1f2e;display:flex;align-items:center;gap:7px}
+.hcard-title i{font-size:14px}
+.cal-lbl{font-size:10.5px;color:#8492a6;margin-bottom:4px}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px}
+.cal-dow{font-size:9px;text-align:center;color:#b0b8cc}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cd{width:100%;aspect-ratio:1;border-radius:3px;font-size:9px;display:flex;align-items:center;justify-content:center;color:#b0b8cc;background:#f4f6fb;border:1px solid #eaedf4;cursor:pointer;transition:background 0.1s}
+.cd:hover:not(.cde):not(.cdf){background:#e0e4ef}
+.cd.cdd{background:#639922;color:#fff;border-color:#639922}
+.cd.cdt{border-color:#534AB7;color:#534AB7;font-weight:600}
+.cd.cdt.cdd{border-color:#27500A;color:#fff}
+.cd.cde{background:transparent;border-color:transparent;cursor:default}
+.cd.cdf{opacity:0.3;cursor:default}
+.hcard-streak{font-size:11px;color:#8492a6;margin-top:9px;display:flex;align-items:center;gap:5px}
+.hcard-streak strong{color:#1a1f2e}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.38);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:#fff;border-radius:12px;border:1px solid #e0e4ef;padding:22px 24px;width:360px;max-width:94vw;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+.modal h2{font-size:14px;font-weight:600;color:#1a1f2e;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.form-group label{font-size:11px;font-weight:500;color:#5a6478;text-transform:uppercase;letter-spacing:0.04em}
+.form-group input,.form-group select{padding:8px 10px;border:1px solid #d8dce8;border-radius:7px;font-size:12.5px;color:#1a1f2e;background:#fff;outline:none;font-family:inherit}
+.form-group input:focus,.form-group select:focus{border-color:#534AB7;box-shadow:0 0 0 3px rgba(83,74,183,0.1)}
+.btn-secondary{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:1px solid #d0d5e0;background:#fff;color:#1a1f2e;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
+.btn-secondary:hover{background:#f4f6fb}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:40px;color:#8492a6}
+.empty-state i{font-size:36px;display:block;margin-bottom:10px;opacity:0.3}
+
+/* ── SETUP SCREEN ── */
+.setup-screen{position:fixed;inset:0;background:#f4f6fb;display:flex;align-items:center;justify-content:center;z-index:300}
+.setup-card{background:#fff;border-radius:14px;border:1px solid #e0e4ef;padding:32px 36px;width:400px;max-width:94vw;box-shadow:0 4px 24px rgba(0,0,0,0.08)}
+.setup-card h2{font-size:16px;font-weight:600;color:#1a1f2e;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+.setup-card .sub{font-size:12px;color:#8492a6;margin-bottom:20px;line-height:1.5}
+.setup-card .hint{font-size:10.5px;color:#b0b8cc;margin-top:3px}
+.setup-error{color:#E24B4A;font-size:11.5px;margin-top:10px;display:none}
+
+/* ── LOADING ── */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;color:#8492a6;gap:12px}
+.spinner{width:28px;height:28px;border:3px solid #e8ecf4;border-top-color:#534AB7;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1f2e;color:#fff;padding:10px 20px;border-radius:8px;font-size:12px;z-index:400;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ── GEAR BTN ── */
+.gear-btn{background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:16px;padding:4px;border-radius:5px;display:flex;align-items:center}
+.gear-btn:hover{color:#534AB7}
+
+/* ── RESPONSIVE ── */
+@media(max-width:700px){
+  .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .topbar-left{width:100%;justify-content:space-between}
+  .topbar-right{width:100%;justify-content:flex-end}
+  .content{padding:12px 10px;height:calc(100vh - 90px)}
+  .metrics{grid-template-columns:repeat(2,1fr);gap:8px}
+  .mc{padding:11px 13px}
+  .mc-value{font-size:17px}
+  table.data-tbl th,table.data-tbl td{padding:7px 8px}
+  .cal-grid-wrap{grid-template-columns:1fr;padding:10px}
+  .setup-card{padding:24px 20px}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (shown if no Supabase config) -->
+<div class="setup-screen" id="setup-screen" style="display:none">
+  <div class="setup-card">
+    <h2><div class="logo-icon" style="width:26px;height:26px"><i class="ti ti-target" style="font-size:14px;color:#fff"></i></div> Connect to Supabase</h2>
+    <div class="sub">Enter your Supabase project credentials to get started.<br>Find them in your Supabase dashboard under <strong>Settings &rarr; API</strong>.</div>
+    <div class="form-group">
+      <label>Project URL</label>
+      <input id="s-url" type="url" placeholder="https://your-project.supabase.co" autocomplete="off">
+      <div class="hint">e.g. https://abcdefg.supabase.co</div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>Anon / Public Key</label>
+      <input id="s-key" type="text" placeholder="eyJhbGciOi..." autocomplete="off">
+      <div class="hint">The "anon public" key (safe for client-side use)</div>
+    </div>
+    <div class="setup-error" id="setup-error"></div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn-primary" onclick="connectSupabase()" id="s-connect"><i class="ti ti-plug"></i> Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-shell" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <div class="logo-icon"><i class="ti ti-target"></i></div>
+        <span class="logo-text">Habits tracker</span>
+      </div>
+      <span class="period-hint" id="period-hint"></span>
+    </div>
+    <div class="topbar-right">
+      <div class="seg-control">
+        <button class="seg-btn active" id="btn-table" onclick="switchView('table',this)"><i class="ti ti-table" style="font-size:12px"></i> Table</button>
+        <button class="seg-btn" id="btn-cal" onclick="switchView('calendar',this)"><i class="ti ti-calendar" style="font-size:12px"></i> Calendar</button>
+      </div>
+      <button class="btn-primary" onclick="openModal()"><i class="ti ti-plus"></i> New habit</button>
+      <button class="gear-btn" onclick="showDisconnect()" title="Settings"><i class="ti ti-settings"></i></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="metrics" id="metrics-row"></div>
+    <div id="main-view"></div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────
+const CATS = {
+  'Health & Wellbeing': {icon:'ti-heart',     chip:'rgba(29,158,117,0.13)', chipB:'rgba(29,158,117,0.28)', chipT:'#0f6e56'},
+  'Personal Growth':    {icon:'ti-star',      chip:'rgba(83,74,183,0.13)',  chipB:'rgba(83,74,183,0.28)',  chipT:'#3C3489'},
+  'Learning':           {icon:'ti-book',      chip:'rgba(93,152,179,0.13)', chipB:'rgba(93,152,179,0.28)', chipT:'#1a5e78'},
+  'Fitness':            {icon:'ti-run',       chip:'rgba(29,158,117,0.13)', chipB:'rgba(29,158,117,0.28)', chipT:'#0f6e56'},
+  'Mindfulness':        {icon:'ti-brain',     chip:'rgba(186,117,23,0.13)', chipB:'rgba(186,117,23,0.28)', chipT:'#7a4c0a'},
+  'Relationships':      {icon:'ti-heart',     chip:'rgba(212,83,126,0.13)', chipB:'rgba(212,83,126,0.28)', chipT:'#993556'},
+  'Finance':            {icon:'ti-coin',      chip:'rgba(99,153,34,0.13)',  chipB:'rgba(99,153,34,0.28)',  chipT:'#3B6D11'},
+  'Career':             {icon:'ti-briefcase', chip:'rgba(136,135,128,0.13)',chipB:'rgba(136,135,128,0.28)',chipT:'#5F5E5A'},
+  'Other':              {icon:'ti-check',     chip:'rgba(136,135,128,0.13)',chipB:'rgba(136,135,128,0.28)',chipT:'#5F5E5A'},
+};
+const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ── STATE ────────────────────────────────────────────────────────────
+let sb = null;
+let habits = [];
+let entriesMap = {};   // { habitId: { 'YYYY-MM-DD': true } }
+let currentView = 'table';
+let busy = false;
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+function fmtKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayKey(){ return fmtKey(new Date()); }
+function weekKeys(){
+  const t=new Date(), dow=t.getDay();
+  return Array.from({length:7},(_,i)=>{ const d=new Date(t); d.setDate(t.getDate()-dow+i); return fmtKey(d); });
+}
+function getStreak(habitId){
+  const logs = entriesMap[habitId] || {};
+  const t=new Date(); let s=0;
+  for(let i=0;i<400;i++){
+    const d=new Date(t); d.setDate(d.getDate()-i);
+    if(logs[fmtKey(d)]) s++; else if(i>0) break;
+  }
+  return s;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showToast(msg, isError){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.background=isError?'#E24B4A':'#1a1f2e';
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+// ── CONFIG ───────────────────────────────────────────────────────────
+function loadConfig(){
+  const url = localStorage.getItem('ht_sb_url') || '';
+  const key = localStorage.getItem('ht_sb_key') || '';
+  return { url, key };
+}
+
+function saveConfig(url, key){
+  localStorage.setItem('ht_sb_url', url);
+  localStorage.setItem('ht_sb_key', key);
+}
+
+function clearConfig(){
+  localStorage.removeItem('ht_sb_url');
+  localStorage.removeItem('ht_sb_key');
+}
+
+// ── SUPABASE CONNECTION ──────────────────────────────────────────────
+async function connectSupabase(){
+  const url = (document.getElementById('s-url').value || '').trim().replace(/\/$/,'');
+  const key = (document.getElementById('s-key').value || '').trim();
+  const errEl = document.getElementById('setup-error');
+
+  if(!url || !key){
+    errEl.textContent = 'Please enter both the project URL and anon key.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('s-connect');
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Connecting...';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  try {
+    const client = window.supabase.createClient(url, key);
+    const { error } = await client.from('habits').select('id').limit(1);
+    if(error) throw new Error(error.message);
+
+    sb = client;
+    saveConfig(url, key);
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = '';
+    await loadDataAndRender();
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.innerHTML = '<i class="ti ti-plug"></i> Connect';
+    btn.disabled = false;
+  }
+}
+
+function showDisconnect(){
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2><i class="ti ti-settings" style="font-size:14px;color:#534AB7"></i> Settings</h2>
+        <p style="font-size:12px;color:#5a6478;margin-bottom:14px">Connected to Supabase. You can disconnect and re-enter your credentials if needed.</p>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" style="background:#E24B4A;border-color:#E24B4A" onclick="doDisconnect()"><i class="ti ti-plug-off"></i> Disconnect</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function doDisconnect(){
+  clearConfig();
+  sb = null;
+  habits = [];
+  entriesMap = {};
+  closeModal();
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('setup-screen').style.display = '';
+}
+
+// ── DATA LOADING ─────────────────────────────────────────────────────
+async function loadDataAndRender(){
+  document.getElementById('main-view').innerHTML = '<div class="loading-screen"><div class="spinner"></div><span>Loading habits...</span></div>';
+  document.getElementById('metrics-row').innerHTML = '';
+
+  try {
+    const { data: habitsData, error: hErr } = await sb
+      .from('habits')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: true });
+
+    if(hErr) throw new Error(hErr.message);
+    habits = habitsData || [];
+
+    entriesMap = {};
+    for(const h of habits) entriesMap[h.id] = {};
+
+    if(habits.length){
+      const ids = habits.map(h => h.id);
+      const { data: entries, error: eErr } = await sb
+        .from('habit_entries')
+        .select('habit_id, entry_date')
+        .in('habit_id', ids);
+
+      if(eErr) throw new Error(eErr.message);
+      for(const e of (entries || [])){
+        if(entriesMap[e.habit_id]) entriesMap[e.habit_id][e.entry_date] = true;
+      }
+    }
+
+    render();
+  } catch(e) {
+    document.getElementById('main-view').innerHTML =
+      `<div class="empty-state"><i class="ti ti-alert-triangle"></i><p>Error loading data: ${esc(e.message)}</p></div>`;
+    showToast('Failed to load data', true);
+  }
+}
+
+// ── TOGGLE DAY ───────────────────────────────────────────────────────
+async function toggleDay(id, key){
+  const today = todayKey();
+  if(key > today || busy) return;
+  const logs = entriesMap[id];
+  if(!logs) return;
+
+  busy = true;
+  try {
+    if(logs[key]){
+      const { error } = await sb.from('habit_entries')
+        .delete()
+        .eq('habit_id', id)
+        .eq('entry_date', key);
+      if(error) throw new Error(error.message);
+      delete logs[key];
+    } else {
+      const { error } = await sb.from('habit_entries')
+        .insert({ habit_id: id, entry_date: key, is_done: true });
+      if(error) throw new Error(error.message);
+      logs[key] = true;
+    }
+    render();
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+  } finally {
+    busy = false;
+  }
+}
+
+// ── CREATE HABIT ─────────────────────────────────────────────────────
+async function createHabit(name, desc, category){
+  try {
+    const { data, error } = await sb.from('habits')
+      .insert({ name, description: desc, category, is_active: true })
+      .select()
+      .single();
+    if(error) throw new Error(error.message);
+    habits.push(data);
+    entriesMap[data.id] = {};
+    render();
+    showToast('Habit created');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+  }
+}
+
+// ── DELETE HABIT ─────────────────────────────────────────────────────
+async function deleteHabit(id){
+  if(!confirm('Delete this habit? Historical records will be preserved.')) return;
+  try {
+    const { error } = await sb.from('habits')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if(error) throw new Error(error.message);
+    habits = habits.filter(h => h.id !== id);
+    delete entriesMap[id];
+    render();
+    showToast('Habit hidden');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+  }
+}
+
+// ── VIEW SWITCH ──────────────────────────────────────────────────────
+function switchView(view, el){
+  currentView = view;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────
+function render(){
+  const d = new Date();
+  document.getElementById('period-hint').textContent =
+    d.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  renderMetrics();
+  if(currentView === 'table') renderTable();
+  else renderCalendar();
+}
+
+// ── METRICS ──────────────────────────────────────────────────────────
+function renderMetrics(){
+  const today = todayKey();
+  const done = habits.filter(h => (entriesMap[h.id] || {})[today]).length;
+  const total = habits.length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  const best = habits.reduce((m, h) => Math.max(m, getStreak(h.id)), 0);
+  const wk = weekKeys();
+  const wkPast = wk.filter(k => k <= today);
+  const wkDone = wkPast.reduce((s, k) => s + habits.filter(h => (entriesMap[h.id] || {})[k]).length, 0);
+  const wkMax = wkPast.length * total;
+  const wkPct = wkMax ? Math.round((wkDone/wkMax)*100) : 0;
+  document.getElementById('metrics-row').innerHTML = `
+    <div class="mc"><div class="mc-label">Done today</div><div class="mc-value">${done} / ${total}</div><div class="mc-sub">${pct}% of habits</div></div>
+    <div class="mc"><div class="mc-label">Today's progress</div><div class="mc-value" style="color:${pct===100?'#0f6e56':'#1a1f2e'}">${pct}%</div><div class="mc-sub">${done===total&&total>0?'All done!':'Keep going'}</div></div>
+    <div class="mc"><div class="mc-label">Best streak</div><div class="mc-value">${best}</div><div class="mc-sub">days in a row</div></div>
+    <div class="mc"><div class="mc-label">This week</div><div class="mc-value">${wkPct}%</div><div class="mc-sub">${wkDone} of ${wkMax} completions</div></div>`;
+}
+
+// ── TABLE VIEW ───────────────────────────────────────────────────────
+function renderTable(){
+  if(!habits.length){ document.getElementById('main-view').innerHTML = emptyHTML(); return; }
+  const today = todayKey(), week = weekKeys();
+  const rows = habits.map(h => {
+    const cat = CATS[h.category] || CATS['Other'];
+    const logs = entriesMap[h.id] || {};
+    const isDone = !!logs[today];
+    const streak = getStreak(h.id);
+    const dots = week.map((k, i) => {
+      const d = !!logs[k], isT = k===today, isFut = k>today;
+      let cls = 'wd'; if(d) cls += ' wdd'; if(isT) cls += ' wdt'; if(isFut) cls += ' wdf';
+      const click = isFut ? '' : `onclick="toggleDay('${h.id}','${k}')"`;
+      return `<div class="${cls}" ${click} title="${isFut?DOW[i]:(d?DOW[i]+' — undo':DOW[i]+' — mark done')}"></div>`;
+    }).join('');
+    const cs = `background:${cat.chip};border-color:${cat.chipB};color:${cat.chipT}`;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}</div></td>
+      <td style="color:#5a6478;font-size:12px">${esc(h.description||'')}</td>
+      <td><button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button></td>
+      <td><div class="week-col"><div class="week-lbl-row">${DOW.map(d=>`<span class="wl">${d}</span>`).join('')}</div><div class="week-dots">${dots}</div></div></td>
+      <td><div class="streak-cell"><span style="color:#E24B4A">&#x1f525;</span>${streak}<span class="lbl">days</span></div></td>
+      <td><span class="chip" style="${cs}">${esc(h.category)}</span></td>
+      <td><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:15px;padding:3px 5px;border-radius:5px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('main-view').innerHTML = `
+    <div class="card" style="padding:0 0 4px">
+      <div class="tbl-wrap">
+        <table class="data-tbl">
+          <thead><tr><th>Habit</th><th>Description</th><th>Done?</th><th>Current week</th><th>Streak</th><th>Category</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── CALENDAR VIEW ────────────────────────────────────────────────────
+function renderCalendar(){
+  if(!habits.length){ document.getElementById('main-view').innerHTML = emptyHTML(); return; }
+  const now = new Date(), year = now.getFullYear(), month = now.getMonth();
+  const dim = new Date(year, month+1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+  const today = todayKey();
+  const cards = habits.map(h => {
+    const cat = CATS[h.category] || CATS['Other'];
+    const logs = entriesMap[h.id] || {};
+    const streak = getStreak(h.id);
+    const isDone = !!logs[today];
+    const cs = `background:${cat.chip};border-color:${cat.chipB};color:${cat.chipT}`;
+    const dowRow = DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
+    let cells = '';
+    for(let i=0; i<firstDow; i++) cells += `<div class="cd cde"></div>`;
+    for(let d=1; d<=dim; d++){
+      const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const done = !!logs[key], isT = key===today, isFut = key>today;
+      let cls = 'cd'; if(done) cls += ' cdd'; if(isT) cls += ' cdt'; if(isFut) cls += ' cdf';
+      const click = isFut ? '' : `onclick="toggleDay('${h.id}','${key}')"`;
+      cells += `<div class="${cls}" ${click} title="${isFut?'':(done?'Undo':'Mark done')}">${d}</div>`;
+    }
+    return `<div class="hcard">
+      <div class="hcard-hdr">
+        <div class="hcard-title"><i class="ti ${cat.icon}" style="color:${cat.chipT}"></i>${esc(h.name)}</div>
+        <button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')" style="font-size:11px;padding:3px 9px">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button>
+      </div>
+      <div class="cal-lbl">${MONTHS_SHORT[month]} ${year} &nbsp;&middot;&nbsp; <span class="chip" style="${cs};font-size:10px;padding:1px 7px">${esc(h.category)}</span></div>
+      <div class="cal-dow-row">${dowRow}</div>
+      <div class="cal-grid">${cells}</div>
+      <div class="hcard-streak"><span style="color:#E24B4A">&#x1f525;</span><strong>${streak}</strong> day streak
+        <span style="margin-left:auto"><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:13px;padding:2px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('main-view').innerHTML = `<div class="cal-grid-wrap">${cards}</div>`;
+}
+
+function emptyHTML(){
+  return `<div class="empty-state"><i class="ti ti-target"></i><p>No habits yet — click <strong>New habit</strong> to add one.</p></div>`;
+}
+
+// ── MODAL ────────────────────────────────────────────────────────────
+function openModal(){
+  const catOpts = Object.keys(CATS).map(c => `<option>${c}</option>`).join('');
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2><i class="ti ti-plus" style="font-size:14px;color:#534AB7"></i>New habit</h2>
+        <div class="form-group"><label>Habit name</label><input id="m-name" type="text" placeholder="e.g. Morning run" maxlength="50" autocomplete="off"></div>
+        <div class="form-group"><label>Description <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="m-desc" type="text" placeholder="e.g. Run for 20 minutes" maxlength="100" autocomplete="off"></div>
+        <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOpts}</select></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" id="m-save" onclick="saveModal()"><i class="ti ti-check"></i> Save habit</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(() => {
+    const el = document.getElementById('m-name');
+    if(el){ el.focus(); el.addEventListener('keydown', e => { if(e.key==='Enter') saveModal(); }); }
+  }, 60);
+}
+
+function closeModal(){ document.getElementById('modal-container').innerHTML = ''; }
+
+async function saveModal(){
+  const name = (document.getElementById('m-name').value || '').trim();
+  if(!name){ document.getElementById('m-name').focus(); return; }
+  const btn = document.getElementById('m-save');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px"></div> Saving...';
+
+  await createHabit(
+    name,
+    (document.getElementById('m-desc').value || '').trim(),
+    document.getElementById('m-cat').value
+  );
+  closeModal();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────
+(async function init(){
+  const { url, key } = loadConfig();
+  if(url && key){
+    try {
+      sb = window.supabase.createClient(url, key);
+      document.getElementById('app-shell').style.display = '';
+      await loadDataAndRender();
+    } catch(e){
+      clearConfig();
+      document.getElementById('setup-screen').style.display = '';
+    }
+  } else {
+    document.getElementById('setup-screen').style.display = '';
+  }
+})();
+</script>
+</body>
+</html>
