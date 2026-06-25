@@ -131,6 +131,16 @@ table.data-tbl tr:hover td{background:#fafbfd}
 .gear-btn{background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:16px;padding:4px;border-radius:5px;display:flex;align-items:center}
 .gear-btn:hover{color:#534AB7}
 
+/* ── EDIT MODE ── */
+.edit-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;border:1px solid #e0e4ef;background:#fff;color:#5a6478;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
+.edit-btn:hover{background:#f4f6fb}
+.edit-btn.active{background:#EEEDFE;color:#534AB7;border-color:#534AB7;font-weight:600}
+.move-btn{background:none;border:none;cursor:pointer;color:#b0b8cc;font-size:15px;padding:1px 3px;border-radius:4px;display:inline-flex;align-items:center;line-height:1}
+.move-btn:hover:not(:disabled){color:#534AB7;background:#EEEDFE}
+.move-btn:disabled{opacity:0.18;cursor:default}
+.move-col{display:flex;flex-direction:column;gap:1px;align-items:center}
+.hcard-edit-bar{display:flex;align-items:center;gap:4px;margin-left:auto}
+
 /* ── RESPONSIVE ── */
 @media(max-width:700px){
   .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
@@ -185,6 +195,7 @@ table.data-tbl tr:hover td{background:#fafbfd}
         <button class="seg-btn active" id="btn-table" onclick="switchView('table',this)"><i class="ti ti-table" style="font-size:12px"></i> Table</button>
         <button class="seg-btn" id="btn-cal" onclick="switchView('calendar',this)"><i class="ti ti-calendar" style="font-size:12px"></i> Calendar</button>
       </div>
+      <button class="edit-btn" id="edit-btn" onclick="toggleEditMode()"><i class="ti ti-pencil" style="font-size:12px"></i> Edit</button>
       <button class="btn-primary" onclick="openModal()"><i class="ti ti-plus"></i> New habit</button>
       <button class="gear-btn" onclick="showDisconnect()" title="Settings"><i class="ti ti-settings"></i></button>
     </div>
@@ -221,6 +232,7 @@ let habits = [];
 let entriesMap = {};   // { habitId: { 'YYYY-MM-DD': true } }
 let currentView = 'table';
 let busy = false;
+let editMode = false;
 
 // ── HELPERS ──────────────────────────────────────────────────────────
 function fmtKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -429,6 +441,46 @@ async function deleteHabit(id){
   }
 }
 
+// ── EDIT MODE ────────────────────────────────────────────────────────
+function toggleEditMode(){
+  editMode = !editMode;
+  const btn = document.getElementById('edit-btn');
+  if(editMode){
+    btn.classList.add('active');
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i> Done';
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '<i class="ti ti-pencil" style="font-size:12px"></i> Edit';
+  }
+  render();
+}
+
+async function moveHabit(id, dir){
+  if(busy) return;
+  const idx = habits.findIndex(h => h.id === id);
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= habits.length) return;
+
+  busy = true;
+  [habits[idx], habits[newIdx]] = [habits[newIdx], habits[idx]];
+  render();
+
+  try {
+    const { error: e1 } = await sb.from('habits').update({ sort_order: idx, updated_at: new Date().toISOString() }).eq('id', habits[idx].id);
+    if(e1) throw new Error(e1.message);
+    const { error: e2 } = await sb.from('habits').update({ sort_order: newIdx, updated_at: new Date().toISOString() }).eq('id', habits[newIdx].id);
+    if(e2) throw new Error(e2.message);
+    habits[idx].sort_order = idx;
+    habits[newIdx].sort_order = newIdx;
+  } catch(e){
+    [habits[idx], habits[newIdx]] = [habits[newIdx], habits[idx]];
+    render();
+    showToast('Error reordering: ' + e.message, true);
+  } finally {
+    busy = false;
+  }
+}
+
 // ── VIEW SWITCH ──────────────────────────────────────────────────────
 function switchView(view, el){
   currentView = view;
@@ -470,7 +522,7 @@ function renderMetrics(){
 function renderTable(){
   if(!habits.length){ document.getElementById('main-view').innerHTML = emptyHTML(); return; }
   const today = todayKey(), week = weekKeys();
-  const rows = habits.map(h => {
+  const rows = habits.map((h, idx) => {
     const cat = CATS[h.category] || CATS['Other'];
     const logs = entriesMap[h.id] || {};
     const isDone = !!logs[today];
@@ -482,21 +534,29 @@ function renderTable(){
       return `<div class="${cls}" ${click} title="${isFut?DOW[i]:(d?DOW[i]+' — undo':DOW[i]+' — mark done')}"></div>`;
     }).join('');
     const cs = `background:${cat.chip};border-color:${cat.chipB};color:${cat.chipT}`;
+    const moveCol = editMode ? `<td><div class="move-col">
+      <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${idx===0?'disabled':''}  title="Move up"><i class="ti ti-chevron-up"></i></button>
+      <button class="move-btn" onclick="moveHabit('${h.id}',1)"  ${idx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
+    </div></td>` : '';
+    const delCol = editMode ? `<td><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:15px;padding:3px 5px;border-radius:5px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></td>` : '';
     return `<tr>
+      ${moveCol}
       <td><div style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}</div></td>
       <td style="color:#5a6478;font-size:12px">${esc(h.description||'')}</td>
       <td><button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button></td>
       <td><div class="week-col"><div class="week-lbl-row">${DOW.map(d=>`<span class="wl">${d}</span>`).join('')}</div><div class="week-dots">${dots}</div></div></td>
       <td><div class="streak-cell"><span style="color:#E24B4A">&#x1f525;</span>${streak}<span class="lbl">days</span></div></td>
       <td><span class="chip" style="${cs}">${esc(h.category)}</span></td>
-      <td><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:15px;padding:3px 5px;border-radius:5px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></td>
+      ${delCol}
     </tr>`;
   }).join('');
+  const thMove = editMode ? '<th></th>' : '';
+  const thDel = editMode ? '<th></th>' : '';
   document.getElementById('main-view').innerHTML = `
     <div class="card" style="padding:0 0 4px">
       <div class="tbl-wrap">
         <table class="data-tbl">
-          <thead><tr><th>Habit</th><th>Description</th><th>Done?</th><th>Current week</th><th>Streak</th><th>Category</th><th></th></tr></thead>
+          <thead><tr>${thMove}<th>Habit</th><th>Description</th><th>Done?</th><th>Current week</th><th>Streak</th><th>Category</th>${thDel}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -510,7 +570,7 @@ function renderCalendar(){
   const dim = new Date(year, month+1, 0).getDate();
   const firstDow = new Date(year, month, 1).getDay();
   const today = todayKey();
-  const cards = habits.map(h => {
+  const cards = habits.map((h, idx) => {
     const cat = CATS[h.category] || CATS['Other'];
     const logs = entriesMap[h.id] || {};
     const streak = getStreak(h.id);
@@ -535,7 +595,11 @@ function renderCalendar(){
       <div class="cal-dow-row">${dowRow}</div>
       <div class="cal-grid">${cells}</div>
       <div class="hcard-streak"><span style="color:#E24B4A">&#x1f525;</span><strong>${streak}</strong> day streak
-        <span style="margin-left:auto"><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:13px;padding:2px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></span>
+        ${editMode ? `<div class="hcard-edit-bar">
+          <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${idx===0?'disabled':''} title="Move up"><i class="ti ti-chevron-up"></i></button>
+          <button class="move-btn" onclick="moveHabit('${h.id}',1)" ${idx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
+          <button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:13px;padding:2px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button>
+        </div>` : ''}
       </div>
     </div>`;
   }).join('');
