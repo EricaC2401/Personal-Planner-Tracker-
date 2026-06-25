@@ -141,6 +141,29 @@ table.data-tbl tr:hover td{background:#fafbfd}
 .move-col{display:flex;flex-direction:column;gap:1px;align-items:center}
 .hcard-edit-bar{display:flex;align-items:center;gap:4px;margin-left:auto}
 
+/* ── INLINE EDIT BTN ── */
+.inline-edit-btn{background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:13px;padding:1px 3px;border-radius:4px;display:inline-flex;align-items:center}
+.inline-edit-btn:hover{color:#534AB7;background:#EEEDFE}
+
+/* ── ICON PICKER ── */
+.icon-grid{display:flex;flex-wrap:wrap;gap:4px}
+.icon-opt{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1.5px solid #e8ecf4;background:#fff;cursor:pointer;font-size:15px;color:#5a6478;transition:all 0.1s}
+.icon-opt:hover{border-color:#534AB7;color:#534AB7}
+.icon-opt.sel{background:#EEEDFE;border-color:#534AB7;color:#534AB7}
+
+/* ── COLOR PICKER ── */
+.color-row{display:flex;gap:6px;flex-wrap:wrap}
+.color-opt{width:24px;height:24px;border-radius:50%;border:2.5px solid #e8ecf4;cursor:pointer;transition:border-color 0.1s}
+.color-opt:hover{border-color:#1a1f2e}
+.color-opt.sel{border-color:#1a1f2e;box-shadow:0 0 0 2px #fff,0 0 0 4px #534AB7}
+
+/* ── CATEGORY LIST ── */
+.cat-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;margin-bottom:12px}
+.cat-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid #e8ecf4;background:#fafbfd;font-size:12px}
+.cat-item .cat-name{flex:1;font-weight:500}
+.cat-item-actions{display:flex;gap:2px}
+.modal-wide{width:420px}
+
 /* ── RESPONSIVE ── */
 @media(max-width:700px){
   .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
@@ -196,6 +219,7 @@ table.data-tbl tr:hover td{background:#fafbfd}
         <button class="seg-btn" id="btn-cal" onclick="switchView('calendar',this)"><i class="ti ti-calendar" style="font-size:12px"></i> Calendar</button>
       </div>
       <button class="edit-btn" id="edit-btn" onclick="toggleEditMode()"><i class="ti ti-pencil" style="font-size:12px"></i> Edit</button>
+      <button class="edit-btn" id="cat-btn" onclick="openCategoryModal()" style="display:none"><i class="ti ti-category" style="font-size:12px"></i> Categories</button>
       <button class="btn-primary" onclick="openModal()"><i class="ti ti-plus"></i> New habit</button>
       <button class="gear-btn" onclick="showDisconnect()" title="Settings"><i class="ti ti-settings"></i></button>
     </div>
@@ -212,27 +236,43 @@ table.data-tbl tr:hover td{background:#fafbfd}
 
 <script>
 // ── CONSTANTS ────────────────────────────────────────────────────────
-const CATS = {
-  'Health & Wellbeing': {icon:'ti-heart',     chip:'rgba(29,158,117,0.13)', chipB:'rgba(29,158,117,0.28)', chipT:'#0f6e56'},
-  'Personal Growth':    {icon:'ti-star',      chip:'rgba(83,74,183,0.13)',  chipB:'rgba(83,74,183,0.28)',  chipT:'#3C3489'},
-  'Learning':           {icon:'ti-book',      chip:'rgba(93,152,179,0.13)', chipB:'rgba(93,152,179,0.28)', chipT:'#1a5e78'},
-  'Fitness':            {icon:'ti-run',       chip:'rgba(29,158,117,0.13)', chipB:'rgba(29,158,117,0.28)', chipT:'#0f6e56'},
-  'Mindfulness':        {icon:'ti-brain',     chip:'rgba(186,117,23,0.13)', chipB:'rgba(186,117,23,0.28)', chipT:'#7a4c0a'},
-  'Relationships':      {icon:'ti-heart',     chip:'rgba(212,83,126,0.13)', chipB:'rgba(212,83,126,0.28)', chipT:'#993556'},
-  'Finance':            {icon:'ti-coin',      chip:'rgba(99,153,34,0.13)',  chipB:'rgba(99,153,34,0.28)',  chipT:'#3B6D11'},
-  'Career':             {icon:'ti-briefcase', chip:'rgba(136,135,128,0.13)',chipB:'rgba(136,135,128,0.28)',chipT:'#5F5E5A'},
-  'Other':              {icon:'ti-check',     chip:'rgba(136,135,128,0.13)',chipB:'rgba(136,135,128,0.28)',chipT:'#5F5E5A'},
+const COLOR_THEMES = {
+  green:  {chip:'rgba(29,158,117,0.13)', chipB:'rgba(29,158,117,0.28)', chipT:'#0f6e56'},
+  purple: {chip:'rgba(83,74,183,0.13)',  chipB:'rgba(83,74,183,0.28)',  chipT:'#3C3489'},
+  blue:   {chip:'rgba(93,152,179,0.13)', chipB:'rgba(93,152,179,0.28)', chipT:'#1a5e78'},
+  orange: {chip:'rgba(186,117,23,0.13)', chipB:'rgba(186,117,23,0.28)', chipT:'#7a4c0a'},
+  pink:   {chip:'rgba(212,83,126,0.13)', chipB:'rgba(212,83,126,0.28)', chipT:'#993556'},
+  olive:  {chip:'rgba(99,153,34,0.13)',  chipB:'rgba(99,153,34,0.28)',  chipT:'#3B6D11'},
+  gray:   {chip:'rgba(136,135,128,0.13)',chipB:'rgba(136,135,128,0.28)',chipT:'#5F5E5A'},
+  red:    {chip:'rgba(226,75,74,0.13)',  chipB:'rgba(226,75,74,0.28)',  chipT:'#b52d2c'},
 };
+const ICON_OPTIONS = [
+  'ti-heart','ti-star','ti-book','ti-run','ti-brain','ti-coin','ti-briefcase','ti-check',
+  'ti-home','ti-music','ti-camera','ti-palette','ti-code','ti-plant','ti-coffee',
+  'ti-sun','ti-moon','ti-trophy','ti-target','ti-flame','ti-bike','ti-yoga','ti-pill',
+  'ti-pencil','ti-users','ti-phone','ti-car','ti-plane','ti-clock','ti-bulb',
+];
 const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FALLBACK_CAT = {icon:'ti-check', chip:'rgba(136,135,128,0.13)', chipB:'rgba(136,135,128,0.28)', chipT:'#5F5E5A'};
 
 // ── STATE ────────────────────────────────────────────────────────────
 let sb = null;
 let habits = [];
-let entriesMap = {};   // { habitId: { 'YYYY-MM-DD': true } }
+let categories = [];
+let CATS = {};
+let entriesMap = {};
 let currentView = 'table';
 let busy = false;
 let editMode = false;
+
+function buildCats(){
+  CATS = {};
+  for(const c of categories){
+    const theme = COLOR_THEMES[c.color_key] || COLOR_THEMES.gray;
+    CATS[c.name] = { icon: c.icon, ...theme };
+  }
+}
 
 // ── HELPERS ──────────────────────────────────────────────────────────
 function fmtKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -343,6 +383,15 @@ async function loadDataAndRender(){
   document.getElementById('metrics-row').innerHTML = '';
 
   try {
+    const { data: catData, error: cErr } = await sb
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('name', { ascending: true });
+    if(cErr) throw new Error(cErr.message);
+    categories = catData || [];
+    buildCats();
+
     const { data: habitsData, error: hErr } = await sb
       .from('habits')
       .select('*')
@@ -445,12 +494,15 @@ async function deleteHabit(id){
 function toggleEditMode(){
   editMode = !editMode;
   const btn = document.getElementById('edit-btn');
+  const catBtn = document.getElementById('cat-btn');
   if(editMode){
     btn.classList.add('active');
     btn.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i> Done';
+    catBtn.style.display = '';
   } else {
     btn.classList.remove('active');
     btn.innerHTML = '<i class="ti ti-pencil" style="font-size:12px"></i> Edit';
+    catBtn.style.display = 'none';
   }
   render();
 }
@@ -523,7 +575,7 @@ function renderTable(){
   if(!habits.length){ document.getElementById('main-view').innerHTML = emptyHTML(); return; }
   const today = todayKey(), week = weekKeys();
   const rows = habits.map((h, idx) => {
-    const cat = CATS[h.category] || CATS['Other'];
+    const cat = CATS[h.category] || FALLBACK_CAT;
     const logs = entriesMap[h.id] || {};
     const isDone = !!logs[today];
     const streak = getStreak(h.id);
@@ -541,7 +593,7 @@ function renderTable(){
     const delCol = editMode ? `<td><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:15px;padding:3px 5px;border-radius:5px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></td>` : '';
     return `<tr>
       ${moveCol}
-      <td><div style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}</div></td>
+      <td><div style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}${editMode?`<button class="inline-edit-btn" onclick="openEditHabitModal('${h.id}')" title="Edit habit"><i class="ti ti-pencil"></i></button>`:''}</div></td>
       <td style="color:#5a6478;font-size:12px">${esc(h.description||'')}</td>
       <td><button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button></td>
       <td><div class="week-col"><div class="week-lbl-row">${DOW.map(d=>`<span class="wl">${d}</span>`).join('')}</div><div class="week-dots">${dots}</div></div></td>
@@ -571,7 +623,7 @@ function renderCalendar(){
   const firstDow = new Date(year, month, 1).getDay();
   const today = todayKey();
   const cards = habits.map((h, idx) => {
-    const cat = CATS[h.category] || CATS['Other'];
+    const cat = CATS[h.category] || FALLBACK_CAT;
     const logs = entriesMap[h.id] || {};
     const streak = getStreak(h.id);
     const isDone = !!logs[today];
@@ -588,7 +640,7 @@ function renderCalendar(){
     }
     return `<div class="hcard">
       <div class="hcard-hdr">
-        <div class="hcard-title"><i class="ti ${cat.icon}" style="color:${cat.chipT}"></i>${esc(h.name)}</div>
+        <div class="hcard-title"><i class="ti ${cat.icon}" style="color:${cat.chipT}"></i>${esc(h.name)}${editMode?`<button class="inline-edit-btn" onclick="openEditHabitModal('${h.id}')" title="Edit"><i class="ti ti-pencil"></i></button>`:''}</div>
         <button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')" style="font-size:11px;padding:3px 9px">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button>
       </div>
       <div class="cal-lbl">${MONTHS_SHORT[month]} ${year} &nbsp;&middot;&nbsp; <span class="chip" style="${cs};font-size:10px;padding:1px 7px">${esc(h.category)}</span></div>
@@ -610,16 +662,19 @@ function emptyHTML(){
   return `<div class="empty-state"><i class="ti ti-target"></i><p>No habits yet — click <strong>New habit</strong> to add one.</p></div>`;
 }
 
-// ── MODAL ────────────────────────────────────────────────────────────
+// ── HABIT MODAL (new + edit) ─────────────────────────────────────────
+function catOptions(selected){
+  return categories.map(c => `<option${c.name===selected?' selected':''}>${esc(c.name)}</option>`).join('');
+}
+
 function openModal(){
-  const catOpts = Object.keys(CATS).map(c => `<option>${c}</option>`).join('');
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" role="dialog" aria-modal="true">
         <h2><i class="ti ti-plus" style="font-size:14px;color:#534AB7"></i>New habit</h2>
         <div class="form-group"><label>Habit name</label><input id="m-name" type="text" placeholder="e.g. Morning run" maxlength="50" autocomplete="off"></div>
         <div class="form-group"><label>Description <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="m-desc" type="text" placeholder="e.g. Run for 20 minutes" maxlength="100" autocomplete="off"></div>
-        <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOpts}</select></div>
+        <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOptions('')}</select></div>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeModal()">Cancel</button>
           <button class="btn-primary" id="m-save" onclick="saveModal()"><i class="ti ti-check"></i> Save habit</button>
@@ -630,6 +685,52 @@ function openModal(){
     const el = document.getElementById('m-name');
     if(el){ el.focus(); el.addEventListener('keydown', e => { if(e.key==='Enter') saveModal(); }); }
   }, 60);
+}
+
+function openEditHabitModal(id){
+  const h = habits.find(x => x.id === id);
+  if(!h) return;
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2><i class="ti ti-pencil" style="font-size:14px;color:#534AB7"></i>Edit habit</h2>
+        <div class="form-group"><label>Habit name</label><input id="m-name" type="text" value="${esc(h.name)}" maxlength="50" autocomplete="off"></div>
+        <div class="form-group"><label>Description <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="m-desc" type="text" value="${esc(h.description||'')}" maxlength="100" autocomplete="off"></div>
+        <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOptions(h.category)}</select></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" id="m-save" onclick="saveEditHabit('${h.id}')"><i class="ti ti-check"></i> Save</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(() => document.getElementById('m-name')?.focus(), 60);
+}
+
+async function saveEditHabit(id){
+  const name = (document.getElementById('m-name').value || '').trim();
+  if(!name){ document.getElementById('m-name').focus(); return; }
+  const btn = document.getElementById('m-save');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px"></div> Saving...';
+  try {
+    const updates = {
+      name,
+      description: (document.getElementById('m-desc').value || '').trim(),
+      category: document.getElementById('m-cat').value,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('habits').update(updates).eq('id', id);
+    if(error) throw new Error(error.message);
+    const h = habits.find(x => x.id === id);
+    if(h) Object.assign(h, updates);
+    closeModal();
+    render();
+    showToast('Habit updated');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check"></i> Save';
+  }
 }
 
 function closeModal(){ document.getElementById('modal-container').innerHTML = ''; }
@@ -647,6 +748,153 @@ async function saveModal(){
     document.getElementById('m-cat').value
   );
   closeModal();
+}
+
+// ── CATEGORY MANAGEMENT ─────────────────────────────────────────────
+function openCategoryModal(){
+  renderCategoryModal();
+}
+
+function renderCategoryModal(editId){
+  const editing = editId ? categories.find(c => c.id === editId) : null;
+  const list = categories.map(c => {
+    const theme = COLOR_THEMES[c.color_key] || COLOR_THEMES.gray;
+    const cs = `background:${theme.chip};border-color:${theme.chipB};color:${theme.chipT}`;
+    return `<div class="cat-item">
+      <i class="ti ${c.icon}" style="font-size:14px;color:${theme.chipT}"></i>
+      <span class="cat-name">${esc(c.name)}</span>
+      <span class="chip" style="${cs};font-size:10px;padding:1px 7px">${esc(c.color_key)}</span>
+      <div class="cat-item-actions">
+        <button class="inline-edit-btn" onclick="renderCategoryModal('${c.id}')" title="Edit"><i class="ti ti-pencil"></i></button>
+        <button class="inline-edit-btn" onclick="deleteCategory('${c.id}')" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const selIcon = editing ? editing.icon : 'ti-check';
+  const selColor = editing ? editing.color_key : 'green';
+  const iconGrid = ICON_OPTIONS.map(ic =>
+    `<div class="icon-opt${ic===selIcon?' sel':''}" onclick="pickCatIcon('${ic}')" title="${ic.replace('ti-','')}"><i class="ti ${ic}"></i></div>`
+  ).join('');
+  const colorRow = Object.entries(COLOR_THEMES).map(([key, t]) =>
+    `<div class="color-opt${key===selColor?' sel':''}" style="background:${t.chipT}" onclick="pickCatColor('${key}')" title="${key}"></div>`
+  ).join('');
+
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-wide" role="dialog" aria-modal="true">
+        <h2><i class="ti ti-category" style="font-size:14px;color:#534AB7"></i> Manage categories</h2>
+        <div class="cat-list">${list || '<p style="color:#8492a6;font-size:12px;text-align:center;padding:12px">No categories yet</p>'}</div>
+        <div style="border-top:1px solid #e8ecf4;padding-top:14px">
+          <div style="font-size:11px;font-weight:600;color:#5a6478;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em">${editing ? 'Edit category' : 'Add category'}</div>
+          <div class="form-group"><label>Name</label><input id="mc-name" type="text" value="${editing ? esc(editing.name) : ''}" maxlength="30" placeholder="e.g. Wellness" autocomplete="off"></div>
+          <div class="form-group"><label>Icon</label><div class="icon-grid" id="mc-icon-grid">${iconGrid}</div><input type="hidden" id="mc-icon" value="${selIcon}"></div>
+          <div class="form-group" style="margin-bottom:0"><label>Color</label><div class="color-row" id="mc-color-row">${colorRow}</div><input type="hidden" id="mc-color" value="${selColor}"></div>
+        </div>
+        <div class="modal-actions" style="margin-top:14px">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+          ${editing ? `<button class="btn-primary" id="mc-save" onclick="saveCategoryEdit('${editing.id}')"><i class="ti ti-check"></i> Update</button>` :
+          `<button class="btn-primary" id="mc-save" onclick="saveCategoryAdd()"><i class="ti ti-plus"></i> Add</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function pickCatIcon(icon){
+  document.getElementById('mc-icon').value = icon;
+  document.querySelectorAll('#mc-icon-grid .icon-opt').forEach(el => {
+    el.classList.toggle('sel', el.querySelector('i').classList.contains(icon));
+  });
+}
+
+function pickCatColor(key){
+  document.getElementById('mc-color').value = key;
+  document.querySelectorAll('#mc-color-row .color-opt').forEach(el => {
+    el.classList.toggle('sel', el.getAttribute('title') === key);
+  });
+}
+
+async function saveCategoryAdd(){
+  const name = (document.getElementById('mc-name').value || '').trim();
+  if(!name){ document.getElementById('mc-name').focus(); return; }
+  const icon = document.getElementById('mc-icon').value;
+  const color_key = document.getElementById('mc-color').value;
+  const btn = document.getElementById('mc-save');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('categories')
+      .insert({ name, icon, color_key, sort_order: categories.length + 1 })
+      .select().single();
+    if(error) throw new Error(error.message);
+    categories.push(data);
+    buildCats();
+    renderCategoryModal();
+    showToast('Category added');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+    btn.disabled = false;
+  }
+}
+
+async function saveCategoryEdit(id){
+  const name = (document.getElementById('mc-name').value || '').trim();
+  if(!name){ document.getElementById('mc-name').focus(); return; }
+  const icon = document.getElementById('mc-icon').value;
+  const color_key = document.getElementById('mc-color').value;
+  const btn = document.getElementById('mc-save');
+  btn.disabled = true;
+  try {
+    const cat = categories.find(c => c.id === id);
+    const oldName = cat ? cat.name : '';
+    const { error } = await sb.from('categories').update({ name, icon, color_key }).eq('id', id);
+    if(error) throw new Error(error.message);
+    if(cat){ cat.name = name; cat.icon = icon; cat.color_key = color_key; }
+    buildCats();
+    if(oldName && oldName !== name){
+      for(const h of habits){
+        if(h.category === oldName){
+          await sb.from('habits').update({ category: name }).eq('id', h.id);
+          h.category = name;
+        }
+      }
+    }
+    renderCategoryModal();
+    render();
+    showToast('Category updated');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+    btn.disabled = false;
+  }
+}
+
+async function deleteCategory(id){
+  const cat = categories.find(c => c.id === id);
+  if(!cat) return;
+  const inUse = habits.filter(h => h.category === cat.name).length;
+  const msg = inUse
+    ? `"${cat.name}" is used by ${inUse} habit(s). They will be moved to the first available category. Delete?`
+    : `Delete category "${cat.name}"?`;
+  if(!confirm(msg)) return;
+  try {
+    const { error } = await sb.from('categories').delete().eq('id', id);
+    if(error) throw new Error(error.message);
+    categories = categories.filter(c => c.id !== id);
+    buildCats();
+    if(inUse){
+      const fallback = categories.length ? categories[0].name : 'Other';
+      for(const h of habits){
+        if(h.category === cat.name){
+          await sb.from('habits').update({ category: fallback }).eq('id', h.id);
+          h.category = fallback;
+        }
+      }
+    }
+    renderCategoryModal();
+    render();
+    showToast('Category deleted');
+  } catch(e){
+    showToast('Error: ' + e.message, true);
+  }
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────
