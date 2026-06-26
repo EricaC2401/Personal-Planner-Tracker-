@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Planner</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f4f6fb;color:#1a1f2e}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:200px;background:#151929;display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{padding:17px 16px 13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.07)}
+.sb-logo-icon{width:27px;height:27px;background:#534AB7;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-logo-text{font-size:13.5px;font-weight:600;color:#e2e8f0}
+.sb-section{font-size:10px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:0.09em;padding:16px 16px 5px}
+.nav{display:flex;align-items:center;gap:9px;padding:8px 16px;font-size:12.5px;color:rgba(255,255,255,0.5);cursor:pointer;border-left:2px solid transparent;border-top:none;border-right:none;border-bottom:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all 0.1s}
+.nav:hover{color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.04)}
+.nav.active{color:#fff;background:rgba(255,255,255,0.09);border-left-color:#6c63ff}
+.sb-spacer{flex:1}
+.sb-date{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.07);font-size:11px;color:rgba(255,255,255,0.3);line-height:1.6}
+.sb-date strong{display:block;color:rgba(255,255,255,0.55);font-size:12px;margin-bottom:2px}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:#fff;border-bottom:1px solid #e8ecf4;padding:0 22px;display:flex;align-items:stretch;flex-shrink:0;min-height:48px}
+.topbar-left{display:flex;align-items:center;min-width:0}
+.page-title{font-size:14px;font-weight:600;color:#1a1f2e;white-space:nowrap;padding-right:20px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.summary-pills{display:flex;align-items:center;gap:6px}
+.spill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500;background:#f4f6fb;color:#5a6478;border:1px solid #e8ecf4}
+.spill.alert{background:#FCEBEB;color:#A32D2D;border-color:#F7C1C1}
+.spill.info{background:#EEEDFE;color:#534AB7;border-color:#AFA9EC}
+.tab-bar{display:flex;align-items:stretch;height:100%}
+.tab{display:flex;align-items:center;padding:0 15px;font-size:12.5px;color:#8492a6;cursor:pointer;border-bottom:2px solid transparent;border-top:none;border-left:none;border-right:none;background:none;font-family:inherit;white-space:nowrap;transition:color 0.1s}
+.tab:hover{color:#1a1f2e}
+.tab.active{color:#534AB7;border-bottom-color:#534AB7;font-weight:500}
+.settings-btn{display:inline-flex;align-items:center;justify-content:center;padding:6px 9px;border-radius:7px;border:1px solid #d0d5e0;background:#fff;color:#5a6478;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
+.settings-btn:hover{background:#f4f6fb}
+
+/* BUTTONS */
+.btn-primary{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;border:1px solid #534AB7;background:#534AB7;color:#fff;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;font-family:inherit}
+.btn-primary:hover{background:#3C3489;border-color:#3C3489}
+.btn-primary:disabled,.btn-secondary:disabled,.btn-ghost:disabled,.settings-btn:disabled{opacity:0.6;cursor:not-allowed}
+.btn-secondary{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;border:1px solid #d0d5e0;background:#fff;color:#1a1f2e;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
+.btn-secondary:hover{background:#f4f6fb}
+.btn-ghost{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;border:1px solid #e0e4ef;background:#fff;color:#5a6478;cursor:pointer;font-size:11.5px;font-family:inherit}
+.btn-ghost:hover{background:#f4f6fb}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.view{display:none;flex-direction:column;gap:12px}
+.view.active{display:flex}
+
+/* METRICS */
+.metrics{display:grid;gap:10px}
+.m3{grid-template-columns:repeat(3,1fr)}
+.m4{grid-template-columns:repeat(4,1fr)}
+.mc{background:#fff;border-radius:11px;padding:13px 16px;border:1px solid #e8ecf4}
+.mc-label{font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:#8492a6;margin-bottom:3px}
+.mc-value{font-size:21px;font-weight:700;color:#1a1f2e;line-height:1.1}
+.mc-value.red{color:#c0392b}
+.mc-value.purple{color:#534AB7}
+.mc-sub{font-size:11px;color:#8492a6;margin-top:2px}
+
+/* CARDS */
+.card{background:#fff;border-radius:11px;border:1px solid #e8ecf4}
+.card-head{padding:10px 14px;border-bottom:1px solid #f3f4f8;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-title{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#8492a6;display:flex;align-items:center;gap:5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.event-day-list{display:flex;flex-wrap:wrap;gap:10px;padding:14px}
+.event-day-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #edf0f6;border-radius:10px;background:#fafbfd;min-width:220px;flex:1}
+.event-day-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.event-day-title{font-size:13px;font-weight:600;color:#1a1f2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-day-meta{font-size:11px;color:#8492a6;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;font-size:12px}
+table.dt thead tr{border-bottom:1px solid #e8ecf4;background:#f8fafc}
+table.dt th{padding:7px 9px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#8492a6;white-space:nowrap}
+table.dt th.c{text-align:center;padding:7px 3px;width:26px}
+table.dt td{padding:6px 9px;color:#1a1f2e;border-bottom:1px solid #f3f4f8;vertical-align:middle}
+table.dt td.c{text-align:center;padding:5px 2px;width:26px}
+table.dt tr:last-child td{border-bottom:none}
+table.dt tr:hover td{background:#fafbfd}
+table.dt td.mu{color:#8492a6;font-size:11.5px}
+table.dt tr.dr td{color:#b0b8c8;text-decoration:line-through}
+table.dt tr.dr td .chip{opacity:0.4}
+.ov{color:#c0392b!important;font-weight:500}
+
+/* EDITABLE CELL */
+.ec{border:none;background:transparent;font-size:12px;color:#1a1f2e;font-family:inherit;width:100%;outline:none;padding:0;cursor:text}
+.ec:focus{background:#f0f4ff;border-radius:3px;padding:1px 3px;cursor:text}
+.ec.mu{color:#8492a6;font-size:11.5px}
+.ec.mu:focus{color:#1a1f2e}
+td:has(.ec:focus){background:#f7f9ff!important}
+
+/* CHECKBOX */
+.cb{width:15px;height:15px;border:1.5px solid #d0d5e0;border-radius:4px;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:#fff;transition:all 0.1s;vertical-align:middle}
+.cb.checked{background:#534AB7;border-color:#534AB7}
+.cb.checked::after{content:'';display:block;width:7px;height:4px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.cb-star{width:16px;height:16px;border:1.5px solid #e0e4ef;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;background:#fff;transition:all 0.12s}
+.cb-star.on{background:#FAEEDA;border-color:#EF9F27}
+
+/* FLAG CELLS */
+.flag{width:16px;height:16px;border:1.5px solid #e0e4ef;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;background:#fff;transition:all 0.12s}
+.flag.f-today.on{background:#E1F5EE;border-color:#5DCAA5}
+.flag.f-imp.on{background:#FAEEDA;border-color:#EF9F27}
+.flag.f-urg.on{background:#FAECE7;border-color:#D85A30}
+
+/* CHIPS */
+.chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-weight:500;font-size:11px;white-space:nowrap}
+.chip-purple{background:#EEEDFE;color:#534AB7}
+.chip-amber{background:#FAEEDA;color:#854F0B}
+.chip-teal{background:#E1F5EE;color:#0F6E56}
+.chip-coral{background:#FAECE7;color:#993C1D}
+.chip-green{background:#EAF3DE;color:#3B6D11}
+.chip-gray{background:#f0f1f5;color:#5a6478}
+.chip-blue{background:#E8F1FF;color:#2356A8}
+.chip-rose{background:#FCEAF1;color:#A23663}
+
+/* INLINE SELECT inside table */
+.isel{border:none;background:transparent;font-size:11.5px;color:#8492a6;font-family:inherit;outline:none;cursor:pointer;max-width:100px}
+.isel:focus{background:#f0f4ff;border-radius:3px;color:#1a1f2e}
+.chip-select{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid transparent;font-weight:600;font-size:11px;min-width:88px;max-width:100%}
+.chip-select.chip-purple{background:#EEEDFE;color:#534AB7}
+.chip-select.chip-amber{background:#FAEEDA;color:#854F0B}
+.chip-select.chip-teal{background:#E1F5EE;color:#0F6E56}
+.chip-select.chip-coral{background:#FAECE7;color:#993C1D}
+.chip-select.chip-green{background:#EAF3DE;color:#3B6D11}
+.chip-select.chip-gray{background:#f0f1f5;color:#5a6478}
+.chip-select.chip-blue{background:#E8F1FF;color:#2356A8}
+.chip-select.chip-rose{background:#FCEAF1;color:#A23663}
+.tag-manager{display:flex;flex-direction:column;gap:14px}
+.tag-group{display:flex;flex-direction:column;gap:8px}
+.tag-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tag-group-title{font-size:11px;font-weight:700;color:#8492a6;text-transform:uppercase;letter-spacing:0.06em}
+.tag-row{display:grid;grid-template-columns:1fr 140px 96px;gap:8px;align-items:center}
+.tag-color-preview{justify-content:center}
+
+/* EVENTS TABLE */
+.events-table{table-layout:fixed}
+.events-table th:nth-child(2){width:26%}
+.events-table th:nth-child(3){width:110px}
+.events-table th:nth-child(4){width:80px}
+.events-table th:nth-child(5){width:150px}
+.events-table th:nth-child(6){width:118px}
+.events-table th:nth-child(7){width:36px}
+.event-title-input,.event-venue-input{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ADD ROW */
+.add-row{display:flex;align-items:center;gap:7px;padding:7px 12px;border-top:1px solid #f3f4f8;background:#fafbfd}
+.add-row input,.add-row select{padding:4px 8px;border:1px solid #dde1ec;border-radius:6px;font-size:11.5px;color:#1a1f2e;background:#fff;outline:none;font-family:inherit}
+.add-row input:focus,.add-row select:focus{border-color:#534AB7}
+.add-row .f1{flex:1}
+
+/* SCHEDULE */
+.sched-row{display:flex;align-items:stretch;border-bottom:1px solid #f3f4f8;min-height:38px}
+.sched-row:last-child{border-bottom:none}
+.sched-row:hover{background:#fafbfd}
+.sched-time{width:90px;flex-shrink:0;padding:5px 7px 5px 13px;border-right:1px solid #f3f4f8}
+.sched-time input{width:100%;border:none;background:transparent;font-size:12px;color:#8492a6;outline:none;font-family:inherit;font-variant-numeric:tabular-nums}
+.sched-time input::placeholder{color:#c0c8d8}
+.sched-act{flex:1;padding:5px 9px;border-right:1px solid #f3f4f8}
+.sched-act input{width:100%;border:none;background:transparent;font-size:12px;color:#1a1f2e;outline:none;font-family:inherit}
+.sched-act input::placeholder{color:#c0c8d8}
+.sched-note{width:150px;flex-shrink:0;padding:5px 9px;border-right:1px solid #f3f4f8}
+.sched-note input{width:100%;border:none;background:transparent;font-size:11.5px;color:#8492a6;outline:none;font-family:inherit}
+.sched-note input::placeholder{color:#c0c8d8}
+.sched-del{width:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.del-btn{background:none;border:none;cursor:pointer;color:#c0c8d8;font-size:15px;line-height:1;padding:2px 4px;border-radius:4px}
+.del-btn:hover{color:#c0392b;background:#fdf2f2}
+.sched-hdr{display:flex;background:#f8fafc;border-bottom:1px solid #e8ecf4;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#8492a6}
+.sched-hdr .sh{padding:6px 9px}
+.sched-hdr .sh:first-child{width:90px;flex-shrink:0;padding-left:13px;border-right:1px solid #f3f4f8}
+.sched-hdr .sh.f1{flex:1;border-right:1px solid #f3f4f8}
+.sched-hdr .sh.w150{width:150px;flex-shrink:0;border-right:1px solid #f3f4f8}
+.sched-hdr .sh.w30{width:30px;flex-shrink:0}
+
+/* HIGHLIGHT ROW */
+tr.hl-row td{font-weight:600}
+tr.hl-bg{background:#fffdf0!important}
+
+/* TOGGLE */
+.tog-wrap{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#8492a6;user-select:none}
+.tog-track{width:28px;height:16px;border-radius:8px;position:relative;transition:background 0.2s;flex-shrink:0}
+.tog-knob{width:12px;height:12px;border-radius:50%;background:#fff;position:absolute;top:2px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+
+/* EMPTY */
+.empty-state{padding:22px 16px;text-align:center;color:#8492a6;font-size:12px}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,18,36,0.35);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:460px;max-width:94vw;border:1px solid #e8ecf4;box-shadow:0 10px 40px rgba(0,0,0,0.15);overflow:hidden}
+.modal-head{padding:13px 17px;border-bottom:1px solid #e8ecf4;font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:11px}
+.modal-foot{padding:11px 17px;border-top:1px solid #e8ecf4;display:flex;justify-content:flex-end;gap:7px}
+.modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:#8492a6;line-height:1}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:10.5px;font-weight:600;color:#5a6478;text-transform:uppercase;letter-spacing:0.04em}
+.fg input,.fg select,.fg textarea{padding:7px 9px;border:1px solid #dde1ec;border-radius:7px;font-size:12px;color:#1a1f2e;background:#fff;outline:none;font-family:inherit}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#534AB7;box-shadow:0 0 0 3px rgba(83,74,183,0.08)}
+.seg-btn{padding:4px 13px;font-size:12px;cursor:pointer;background:#fff;color:#5a6478;border:none;font-family:inherit}
+.seg-btn.active{background:#EEEDFE;color:#534AB7;font-weight:500}
+
+/* SETUP */
+.setup-screen{position:fixed;inset:0;background:#f4f6fb;display:flex;align-items:center;justify-content:center;z-index:300}
+.setup-card{background:#fff;border-radius:14px;border:1px solid #e0e4ef;padding:32px 36px;width:400px;max-width:94vw;box-shadow:0 4px 24px rgba(0,0,0,0.08)}
+.setup-card h2{font-size:16px;font-weight:600;color:#1a1f2e;margin-bottom:6px}
+.setup-card .sub{font-size:12px;color:#8492a6;margin-bottom:20px;line-height:1.5}
+.setup-card .hint{font-size:10.5px;color:#b0b8cc;margin-top:3px}
+.setup-error{color:#E24B4A;font-size:11.5px;margin-top:10px;display:none}
+
+/* STATUS */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;color:#8492a6;gap:12px}
+.spinner{width:28px;height:28px;border:3px solid #e8ecf4;border-top-color:#534AB7;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.debug-panel{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);width:min(900px,calc(100vw - 40px));background:#fff;border:1px solid #f4b1b1;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.12);z-index:401;padding:14px 16px;display:none}
+.debug-panel.open{display:block}
+.debug-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.debug-panel-title{font-size:13px;font-weight:700;color:#c0392b}
+.debug-panel pre{background:#fff7f7;border:1px solid #f7d3d3;border-radius:8px;padding:10px;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1f2e;color:#fff;padding:10px 20px;border-radius:8px;font-size:12px;z-index:400;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+.notice{padding:10px 14px;border-radius:10px;border:1px solid #f1d28b;background:#fff4db;color:#7a4c0a;font-size:12px}
+
+@media(max-width:900px){
+  .row2{grid-template-columns:1fr}
+}
+
+@media(max-width:700px){
+  .app{display:block;height:auto;min-height:100vh}
+  .sidebar{width:100%;height:auto}
+  .main{min-height:calc(100vh - 140px)}
+  .topbar{padding:10px 14px;flex-wrap:wrap}
+  .topbar-left,.topbar-right{width:100%}
+  .topbar-right{justify-content:flex-end;flex-wrap:wrap}
+  .content{padding:12px 10px}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .add-row{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<div class="setup-screen" id="setup-screen" style="display:none">
+  <div class="setup-card">
+    <h2>Connect to Supabase</h2>
+    <div class="sub">Enter your Supabase project credentials. Run the updated <code>setup.sql</code> in Supabase before connecting.</div>
+    <div class="fg">
+      <label>Project URL</label>
+      <input id="s-url" type="url" placeholder="https://your-project.supabase.co" autocomplete="off">
+      <div class="hint">Find this in Supabase under Settings → API.</div>
+    </div>
+    <div class="fg" style="margin-top:12px">
+      <label>Anon / Public Key</label>
+      <input id="s-key" type="text" placeholder="eyJhbGciOi..." autocomplete="off">
+    </div>
+    <div class="setup-error" id="setup-error"></div>
+    <div class="modal-foot" style="padding:0;margin-top:18px;border-top:none;justify-content:flex-start">
+      <button class="btn-primary" onclick="connectSupabase()" id="s-connect">Connect</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-shell" style="display:none">
+<div class="app">
+
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+    </div>
+    <span class="sb-logo-text">Daily Planner</span>
+  </div>
+  <div class="sb-section">Sections</div>
+  <button class="nav active" id="nav-schedule" onclick="showSection('schedule',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Daily Schedule
+  </button>
+  <button class="nav" id="nav-tasks" onclick="showSection('tasks',this)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><polyline points="4 6 5 7 7 5"/><polyline points="4 12 5 13 7 11"/><polyline points="4 18 5 19 7 17"/></svg>
+    Tasks &amp; Events
+  </button>
+  <div class="sb-spacer"></div>
+  <div class="sb-date"><strong id="sb-dow"></strong><span id="sb-date"></span></div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="page-title" id="page-title">Daily Schedule</span>
+      <div class="tab-bar" id="tab-bar-tasks" style="display:none">
+        <button class="tab" onclick="switchTab('goals',this)">Goals</button>
+        <button class="tab active" onclick="switchTab('todos',this)">To-do</button>
+        <button class="tab" onclick="switchTab('events',this)">Events</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="summary-pills" id="summary-pills"></div>
+      <button class="settings-btn" onclick="showDisconnect()">Settings</button>
+      <button class="btn-primary" id="topbar-add-btn" style="display:none" onclick="topbarAdd()">+ Add to-do</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="schema-notice"></div>
+
+    <div class="view active" id="sec-schedule">
+      <div class="card" id="selected-date-events-card" style="display:none">
+        <div class="card-head">
+          <span class="card-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+            Events on selected date
+          </span>
+          <span id="selected-date-events-meta" style="font-size:10.5px;color:#8492a6"></span>
+        </div>
+        <div class="event-day-list" id="selected-date-events-list"></div>
+      </div>
+
+      <div class="row2">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Today's to-do
+            </span>
+            <span style="font-size:10.5px;color:#8492a6">Focused for selected date</span>
+          </div>
+          <div class="tbl-wrap"><table class="dt">
+            <thead><tr>
+              <th class="c"></th>
+              <th style="width:72px">Cat</th>
+              <th>Item</th>
+              <th style="width:92px">Move</th>
+              <th class="c" title="Highlight">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="#EF9F27" stroke="#EF9F27" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </th>
+            </tr></thead>
+            <tbody id="today-todo-tbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Done today
+            </span>
+            <span style="font-size:10.5px;color:#8492a6">Completed on selected date</span>
+          </div>
+          <div class="tbl-wrap"><table class="dt">
+            <thead><tr>
+              <th class="c"></th>
+              <th style="width:72px">Cat</th>
+              <th>Item</th>
+            </tr></thead>
+            <tbody id="today-done-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Schedule log
+          </span>
+          <div style="display:flex;gap:9px;align-items:center">
+            <label class="tog-wrap" onclick="toggleAutoTime()">
+              <div id="at-track" class="tog-track" style="background:#534AB7">
+                <div id="at-knob" class="tog-knob" style="left:14px"></div>
+              </div>
+              Auto time
+            </label>
+            <input type="date" id="sched-date" style="padding:4px 8px;border:1px solid #dde1ec;border-radius:6px;font-size:12px;color:#1a1f2e;outline:none;font-family:inherit" onchange="loadSchedule()" />
+            <button class="btn-secondary" onclick="addSlot()">+ Entry</button>
+          </div>
+        </div>
+        <div class="sched-hdr">
+          <div class="sh">Time</div>
+          <div class="sh f1">Activity</div>
+          <div class="sh w150">Note</div>
+          <div class="sh w30"></div>
+        </div>
+        <div id="sched-grid"></div>
+      </div>
+    </div>
+
+    <div class="view" id="sec-tasks">
+      <div class="view" id="view-goals">
+        <div class="metrics m4">
+          <div class="mc"><div class="mc-label">Active</div><div class="mc-value purple" id="ct-active">0</div><div class="mc-sub">in progress</div></div>
+          <div class="mc"><div class="mc-label">Completed</div><div class="mc-value" id="ct-done">0</div><div class="mc-sub">finished</div></div>
+          <div class="mc"><div class="mc-label">Cancelled</div><div class="mc-value" id="ct-cancelled">0</div><div class="mc-sub">parked</div></div>
+          <div class="mc"><div class="mc-label">Total</div><div class="mc-value" id="ct-total">0</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;border:1px solid #e0e4ef;border-radius:7px;overflow:hidden;width:fit-content">
+            <button class="seg-btn active" onclick="switchGoalTab('pending',this)">Pending</button>
+            <button class="seg-btn" onclick="switchGoalTab('done',this)" style="border-left:1px solid #e0e4ef">Completed</button>
+            <button class="seg-btn" onclick="switchGoalTab('cancelled',this)" style="border-left:1px solid #e0e4ef">Cancelled</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Core work goals</span>
+            <button class="btn-primary" onclick="openModal('coretask')">+ Add goal</button>
+          </div>
+          <div class="tbl-wrap"><table class="dt" id="goals-pending-card">
+            <thead><tr><th class="c"></th><th>Goal</th><th class="c" title="Important"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="13"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg></th><th class="c" title="Urgent"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></th><th style="width:150px">Area</th><th style="width:120px">Target</th><th style="width:90px">Created</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="goals-tbody"></tbody>
+          </table></div>
+          <div class="tbl-wrap" id="goals-done-card" style="display:none"><table class="dt">
+            <thead><tr><th class="c"></th><th>Goal</th><th class="c" title="Important"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="13"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg></th><th class="c" title="Urgent"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></th><th style="width:150px">Area</th><th style="width:120px">Target</th><th style="width:90px">Created</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="goals-done-tbody"></tbody>
+          </table></div>
+          <div class="tbl-wrap" id="goals-cancelled-card" style="display:none"><table class="dt">
+            <thead><tr><th class="c"></th><th>Goal</th><th class="c" title="Important"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="13"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg></th><th class="c" title="Urgent"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></th><th style="width:150px">Area</th><th style="width:120px">Target</th><th style="width:90px">Created</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="goals-cancelled-tbody"></tbody>
+          </table></div>
+          <div class="add-row" id="goals-add-row">
+            <input class="f1" id="ct-name" placeholder="Goal name" onkeydown="if(event.key==='Enter')addCoreTask()" />
+            <select style="width:155px" id="ct-goal"><option value="">— Area —</option></select>
+            <input style="width:140px" id="ct-target-date" type="date" />
+            <button class="btn-primary" onclick="addCoreTask()">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view active" id="view-todos">
+        <div class="metrics m4">
+          <div class="mc"><div class="mc-label">To do</div><div class="mc-value purple" id="td-pending">0</div></div>
+          <div class="mc"><div class="mc-label">Done</div><div class="mc-value" id="td-done">0</div></div>
+          <div class="mc"><div class="mc-label">Overdue</div><div class="mc-value red" id="td-overdue">0</div></div>
+          <div class="mc"><div class="mc-label">Total</div><div class="mc-value" id="td-total">0</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;border:1px solid #e0e4ef;border-radius:7px;overflow:hidden;width:fit-content">
+            <button class="seg-btn active" onclick="switchTodoTab('pending',this)">Pending</button>
+            <button class="seg-btn" onclick="switchTodoTab('done',this)" style="border-left:1px solid #e0e4ef">Completed</button>
+            <button class="seg-btn" onclick="switchTodoTab('cancelled',this)" style="border-left:1px solid #e0e4ef">Cancelled</button>
+          </div>
+          <select id="td-filter" style="padding:3px 7px;border:1px solid #dde1ec;border-radius:6px;font-size:11.5px;color:#1a1f2e;background:#fff;outline:none;font-family:inherit" onchange="renderTodos()">
+            <option value="">All categories</option>
+          </select>
+        </div>
+
+        <div class="card" id="card-pending">
+          <div class="card-head">
+            <span class="card-title">Pending</span>
+            <button class="btn-primary" onclick="openModal('todo')">+ Add item</button>
+          </div>
+          <div class="tbl-wrap"><table class="dt">
+            <thead><tr>
+              <th class="c"></th>
+              <th style="width:72px">Cat</th>
+              <th>Item</th>
+              <th class="c" title="Today"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></th>
+              <th class="c" title="Important"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="13"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg></th>
+              <th class="c" title="Urgent"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></th>
+              <th style="width:120px">Linked goal</th>
+              <th style="width:100px">Area</th>
+              <th style="width:105px">Deadline</th>
+              <th style="width:85px">Move</th>
+              <th style="width:90px">Created</th>
+              <th class="c"></th>
+              <th class="c">Cancel</th>
+            </tr></thead>
+            <tbody id="todos-pending-tbody"></tbody>
+          </table></div>
+          <div class="add-row">
+            <input class="f1" id="td-name" placeholder="To-do item" onkeydown="if(event.key==='Enter')addTodo()" />
+            <select style="width:90px" id="td-cat"></select>
+            <input style="width:120px" id="td-deadline" type="date" />
+            <button class="btn-primary" onclick="addTodo()">Add</button>
+          </div>
+        </div>
+
+        <div class="card" id="card-done" style="display:none">
+          <div class="card-head"><span class="card-title">Completed</span></div>
+          <div class="tbl-wrap"><table class="dt">
+            <thead><tr>
+              <th class="c"></th><th style="width:72px">Cat</th><th>Item</th>
+              <th style="width:100px">Area</th><th style="width:105px">Deadline</th>
+              <th style="width:90px">Created</th><th style="width:90px">Completed</th>
+              <th class="c"></th><th class="c">Cancel</th>
+            </tr></thead>
+            <tbody id="todos-done-tbody"></tbody>
+          </table></div>
+        </div>
+        <div class="card" id="card-cancelled" style="display:none">
+          <div class="card-head"><span class="card-title">Cancelled</span></div>
+          <div class="tbl-wrap"><table class="dt">
+            <thead><tr>
+              <th class="c"></th><th style="width:72px">Cat</th><th>Item</th>
+              <th style="width:100px">Area</th><th style="width:105px">Deadline</th>
+              <th style="width:90px">Created</th><th class="c"></th><th class="c">Cancel</th>
+            </tr></thead>
+            <tbody id="todos-cancelled-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-events">
+        <div class="metrics m4">
+          <div class="mc"><div class="mc-label">Upcoming</div><div class="mc-value purple" id="ev-upcoming">0</div></div>
+          <div class="mc"><div class="mc-label">Done</div><div class="mc-value" id="ev-done">0</div></div>
+          <div class="mc"><div class="mc-label">Cancelled</div><div class="mc-value" id="ev-cancelled">0</div></div>
+          <div class="mc"><div class="mc-label">Total</div><div class="mc-value" id="ev-total">0</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;border:1px solid #e0e4ef;border-radius:7px;overflow:hidden;width:fit-content">
+            <button class="seg-btn active" onclick="switchEventTab('pending',this)">Pending</button>
+            <button class="seg-btn" onclick="switchEventTab('done',this)" style="border-left:1px solid #e0e4ef">Completed</button>
+            <button class="seg-btn" onclick="switchEventTab('cancelled',this)" style="border-left:1px solid #e0e4ef">Cancelled</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">All events</span>
+            <button class="btn-primary" onclick="openModal('event')">+ Add event</button>
+          </div>
+          <div class="tbl-wrap" id="events-pending-card"><table class="dt events-table">
+            <thead><tr><th class="c"></th><th>Event</th><th>Date</th><th>Time</th><th>Venue</th><th>Category</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="events-tbody"></tbody>
+          </table></div>
+          <div class="tbl-wrap" id="events-done-card" style="display:none"><table class="dt events-table">
+            <thead><tr><th class="c"></th><th>Event</th><th>Date</th><th>Time</th><th>Venue</th><th>Category</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="events-done-tbody"></tbody>
+          </table></div>
+          <div class="tbl-wrap" id="events-cancelled-card" style="display:none"><table class="dt events-table">
+            <thead><tr><th class="c"></th><th>Event</th><th>Date</th><th>Time</th><th>Venue</th><th>Category</th><th class="c"></th><th class="c">Cancel</th></tr></thead>
+            <tbody id="events-cancelled-tbody"></tbody>
+          </table></div>
+          <div class="add-row" id="events-add-row">
+            <input class="f1" id="ev-name" placeholder="Event name" onkeydown="if(event.key==='Enter')addEvent()" />
+            <input style="width:120px" id="ev-date" type="date" />
+            <input style="width:100px" id="ev-time" type="time" />
+            <input style="width:95px" id="ev-venue" placeholder="Venue" />
+            <button class="btn-primary" onclick="addEvent()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="modal-bg" id="modal-bg" onclick="bgClose(event)">
+  <div class="modal">
+    <div class="modal-head"><span id="modal-title">Add</span><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="modal-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="debug-panel" id="debug-panel">
+  <div class="debug-panel-head">
+    <div class="debug-panel-title">Planner insert debug</div>
+    <button class="modal-close" type="button" onclick="hidePlannerInsertDebug()">&times;</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="fg" style="margin:0">
+      <label>Context</label>
+      <input id="debug-context" readonly>
+    </div>
+    <div class="fg" style="margin:0">
+      <label>Payload</label>
+      <pre id="debug-payload"></pre>
+    </div>
+    <div class="fg" style="margin:0">
+      <label>Error</label>
+      <pre id="debug-error"></pre>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLOR_OPTIONS = [
+  { value:'chip-amber', label:'Amber' },
+  { value:'chip-purple', label:'Purple' },
+  { value:'chip-teal', label:'Teal' },
+  { value:'chip-coral', label:'Coral' },
+  { value:'chip-green', label:'Green' },
+  { value:'chip-blue', label:'Blue' },
+  { value:'chip-rose', label:'Rose' },
+  { value:'chip-gray', label:'Gray' },
+];
+const DEFAULT_TAG_CONFIG = {
+  areas: [
+    { label:'Finance', color:'chip-amber' },
+    { label:'Career & Skills', color:'chip-purple' },
+    { label:'Home Ownership', color:'chip-teal' },
+    { label:'Relationships & Love', color:'chip-coral' },
+    { label:'Health', color:'chip-green' },
+    { label:'Personal', color:'chip-gray' },
+  ],
+  taskCategories: [
+    { label:'Personal', color:'chip-teal' },
+    { label:'REF/ROI', color:'chip-amber' },
+    { label:'Work', color:'chip-purple' },
+  ],
+  eventCategories: [
+    { label:'Friends', color:'chip-purple' },
+    { label:'Family', color:'chip-rose' },
+    { label:'Work', color:'chip-blue' },
+    { label:'Social', color:'chip-green' },
+  ],
+};
+
+let AREAS = [];
+let CATS = [];
+let EVENT_CATS = [];
+let AREA_CHIP = {};
+let CAT_CHIP = {};
+let EVENT_CAT_CHIP = {};
+let tagConfig = null;
+
+let sb = null;
+let autoTime = true;
+let currentSection = 'schedule';
+let currentTab = 'todos';
+let todoTab = 'pending';
+let goalTab = 'pending';
+let eventTab = 'pending';
+let busy = false;
+let modalType = '';
+let modalSaveHandler = null;
+
+const state = {
+  goals: [],
+  tasks: [],
+  events: [],
+  currentPlanId: null,
+  currentDateItems: [],
+};
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+function esc(s){return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtFull(s){if(!s)return'';const d=new Date(`${s}T00:00:00`);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function isOverdue(s){return !!s && s < todayStr();}
+function daysUntil(s){if(!s)return null;return Math.round((new Date(`${s}T00:00:00`)-new Date(`${todayStr()}T00:00:00`))/(864e5));}
+function areaChip(g){if(!g)return'';return`<span class="chip ${AREA_CHIP[g]||'chip-gray'}">${esc(g)}</span>`;}
+function catChip(c){if(!c)return'';return`<span class="chip ${CAT_CHIP[c]||'chip-gray'}">${esc(c)}</span>`;}
+function areaChipClass(g){return AREA_CHIP[g] || 'chip-gray';}
+function catChipClass(c){return CAT_CHIP[c] || 'chip-gray';}
+function eventCatChipClass(c){return EVENT_CAT_CHIP[c] || 'chip-gray';}
+const icoT=on=>`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${on?'#0F6E56':'#c0c8d8'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+const icoI=on=>`<svg width="10" height="10" viewBox="0 0 24 24" fill="${on?'#BA7517':'none'}" stroke="${on?'#BA7517':'#c0c8d8'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="13"/><circle cx="12" cy="17" r="1.5"/></svg>`;
+const icoU=on=>`<svg width="10" height="10" viewBox="0 0 24 24" fill="${on?'#D85A30':'none'}" stroke="${on?'#D85A30':'#c0c8d8'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+const icoStar=on=>`<svg width="11" height="11" viewBox="0 0 24 24" fill="${on?'#EF9F27':'none'}" stroke="${on?'#EF9F27':'#c0c8d8'}" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+function showToast(msg, isError){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#E24B4A' : '#1a1f2e';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function hidePlannerInsertDebug(){
+  document.getElementById('debug-panel').classList.remove('open');
+}
+
+function validateDailyPlanPayload(payload){
+  const isTask = payload.item_type === 'task' && payload.task_id != null && payload.event_id == null;
+  const isEvent = payload.item_type === 'event' && payload.event_id != null && payload.task_id == null;
+  const isSchedule = payload.item_type === 'schedule_entry' && payload.task_id == null && payload.event_id == null;
+  return isTask || isEvent || isSchedule;
+}
+
+function showPlannerInsertDebug(context, payload, error){
+  const debugError = {
+    message: error?.message || String(error),
+    details: error?.details || null,
+    hint: error?.hint || null,
+    code: error?.code || null,
+    payloadValidAgainstAppRule: validateDailyPlanPayload(payload),
+  };
+  console.error('daily_plan_items insert failed', { context, payload, error: debugError });
+  document.getElementById('debug-context').value = context;
+  document.getElementById('debug-payload').textContent = JSON.stringify(payload, null, 2);
+  document.getElementById('debug-error').textContent = JSON.stringify(debugError, null, 2);
+  document.getElementById('debug-panel').classList.add('open');
+  showToast('Planner insert failed. Debug panel opened.', true);
+}
+
+function loadConfig(){
+  return {
+    url: localStorage.getItem('dp_sb_url') || '',
+    key: localStorage.getItem('dp_sb_key') || '',
+  };
+}
+
+function saveConfig(url, key){
+  localStorage.setItem('dp_sb_url', url);
+  localStorage.setItem('dp_sb_key', key);
+}
+
+function clearConfig(){
+  localStorage.removeItem('dp_sb_url');
+  localStorage.removeItem('dp_sb_key');
+}
+
+function cloneDefaultTagConfig(){
+  return JSON.parse(JSON.stringify(DEFAULT_TAG_CONFIG));
+}
+
+function normalizeTagGroup(group, fallbackGroup){
+  const normalized = [];
+  const seen = new Set();
+  for(const entry of (group || [])){
+    const label = String(entry?.label || '').trim();
+    if(!label || seen.has(label)) continue;
+    seen.add(label);
+    normalized.push({
+      label,
+      color: COLOR_OPTIONS.some(option => option.value === entry?.color) ? entry.color : 'chip-gray',
+    });
+  }
+  if(normalized.length) return normalized;
+  return fallbackGroup.map(entry => ({ ...entry }));
+}
+
+function loadTagConfig(){
+  try{
+    const raw = localStorage.getItem('dp_tag_config');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      areas: normalizeTagGroup(parsed.areas, DEFAULT_TAG_CONFIG.areas),
+      taskCategories: normalizeTagGroup(parsed.taskCategories, DEFAULT_TAG_CONFIG.taskCategories),
+      eventCategories: normalizeTagGroup(parsed.eventCategories, DEFAULT_TAG_CONFIG.eventCategories),
+    };
+  } catch {
+    return cloneDefaultTagConfig();
+  }
+}
+
+function saveTagConfig(){
+  localStorage.setItem('dp_tag_config', JSON.stringify(tagConfig));
+}
+
+function applyTagConfig(){
+  AREAS = tagConfig.areas.map(entry => entry.label);
+  CATS = tagConfig.taskCategories.map(entry => entry.label);
+  EVENT_CATS = tagConfig.eventCategories.map(entry => entry.label);
+  AREA_CHIP = Object.fromEntries(tagConfig.areas.map(entry => [entry.label, entry.color]));
+  CAT_CHIP = Object.fromEntries(tagConfig.taskCategories.map(entry => [entry.label, entry.color]));
+  EVENT_CAT_CHIP = Object.fromEntries(tagConfig.eventCategories.map(entry => [entry.label, entry.color]));
+}
+
+function setBusy(nextBusy){
+  busy = nextBusy;
+}
+
+function getSelectedDate(){
+  return document.getElementById('sched-date').value || todayStr();
+}
+
+function setSelectedDate(dateKey){
+  document.getElementById('sched-date').value = dateKey;
+}
+
+function getGoalById(id){
+  return state.goals.find(goal => goal.id === id) || null;
+}
+
+function getCurrentTaskItem(taskId){
+  return state.currentDateItems.find(item => item.item_type === 'task' && item.task_id === taskId && ['planned','done'].includes(item.status)) || null;
+}
+
+function getTaskView(task){
+  const dayItem = getCurrentTaskItem(task.id);
+  return {
+    ...task,
+    today: !!dayItem?.is_today_focus,
+    important: !!dayItem?.is_important,
+    urgent: !!dayItem?.is_urgent,
+    highlight: !!dayItem?.is_highlight,
+    dayItem,
+  };
+}
+
+function renderStaticOptions(){
+  const areaOptions = ['<option value="">— Area —</option>'].concat(AREAS.map(area => `<option>${esc(area)}</option>`)).join('');
+  document.getElementById('ct-goal').innerHTML = areaOptions;
+  document.getElementById('td-cat').innerHTML = CATS.map(cat => `<option>${esc(cat)}</option>`).join('');
+  document.getElementById('td-filter').innerHTML = '<option value="">All categories</option>' + CATS.map(cat => `<option>${esc(cat)}</option>`).join('');
+}
+
+function initShell(){
+  tagConfig = loadTagConfig();
+  applyTagConfig();
+  const now = new Date();
+  document.getElementById('sb-dow').textContent = now.toLocaleDateString('en-GB',{weekday:'long'});
+  document.getElementById('sb-date').textContent = now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  setSelectedDate(todayStr());
+  renderStaticOptions();
+}
+
+async function connectSupabase(){
+  const url = (document.getElementById('s-url').value || '').trim().replace(/\/$/,'');
+  const key = (document.getElementById('s-key').value || '').trim();
+  const errEl = document.getElementById('setup-error');
+  if(!url || !key){
+    errEl.textContent = 'Please enter both the project URL and anon key.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('s-connect');
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Connecting...';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  try{
+    const client = window.supabase.createClient(url, key);
+    const { error } = await client.from('goals').select('id').limit(1);
+    if(error) throw new Error(error.message);
+
+    sb = client;
+    saveConfig(url, key);
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = '';
+    await loadDataAndRender();
+  } catch (error){
+    errEl.textContent = `Connection failed: ${error.message}`;
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Connect';
+    btn.disabled = false;
+  }
+}
+
+function showDisconnect(){
+  modalType = 'disconnect';
+  document.getElementById('modal-title').textContent = 'Supabase settings';
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:12px;color:#5a6478;line-height:1.6">Manage your planner tag labels and colors, or disconnect to clear the saved URL and anon key on this device.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn-secondary" onclick="openTagManagerModal()">Manage tags</button>
+    </div>
+  `;
+  modalSaveHandler = doDisconnect;
+  document.getElementById('modal-save-btn').textContent = 'Disconnect';
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function doDisconnect(){
+  clearConfig();
+  sb = null;
+  state.goals = [];
+  state.tasks = [];
+  state.events = [];
+  state.currentDateItems = [];
+  state.currentPlanId = null;
+  closeModal();
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('setup-screen').style.display = '';
+}
+
+async function loadDataAndRender(){
+  document.getElementById('schema-notice').innerHTML = '';
+  document.getElementById('summary-pills').innerHTML = '';
+  document.getElementById('goals-tbody').innerHTML = '';
+  document.getElementById('todos-pending-tbody').innerHTML = '';
+  document.getElementById('todos-done-tbody').innerHTML = '';
+  document.getElementById('events-tbody').innerHTML = '';
+  document.getElementById('sched-grid').innerHTML = '<div class="loading-screen"><div class="spinner"></div><span>Loading planner...</span></div>';
+  try{
+    const [goalsRes, tasksRes, eventsRes] = await Promise.all([
+      sb.from('goals').select('*').eq('is_active', true).order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true }),
+      sb.from('tasks').select('*').eq('is_active', true).order('created_at', { ascending: true }),
+      sb.from('events').select('*').eq('is_active', true).order('event_date', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true }),
+    ]);
+
+    if(goalsRes.error) throw new Error(goalsRes.error.message);
+    if(tasksRes.error) throw new Error(tasksRes.error.message);
+    if(eventsRes.error) throw new Error(eventsRes.error.message);
+
+    state.goals = goalsRes.data || [];
+    state.tasks = tasksRes.data || [];
+    state.events = eventsRes.data || [];
+
+    await loadCurrentDateItems();
+    renderAll();
+  } catch (error){
+    document.getElementById('schema-notice').innerHTML = `<div class="notice"><strong>Unable to load planner data.</strong> ${esc(error.message)}. If the new planner tables do not exist yet, run the updated <code>setup.sql</code> in Supabase and reconnect.</div>`;
+    document.getElementById('sched-grid').innerHTML = '<div class="empty-state">Planner data could not be loaded.</div>';
+    showToast('Failed to load planner data', true);
+  }
+}
+
+async function loadCurrentDateItems(){
+  const selectedDate = getSelectedDate();
+  const { data: planRows, error: planErr } = await sb.from('daily_plans').select('*').eq('plan_date', selectedDate).limit(1);
+  if(planErr) throw new Error(planErr.message);
+  const plan = (planRows || [])[0] || null;
+  state.currentPlanId = plan ? plan.id : null;
+
+  if(!plan){
+    state.currentDateItems = [];
+    return;
+  }
+
+  const { data: itemRows, error: itemErr } = await sb
+    .from('daily_plan_items')
+    .select('*')
+    .eq('daily_plan_id', plan.id)
+    .order('sort_order', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  if(itemErr) throw new Error(itemErr.message);
+  state.currentDateItems = itemRows || [];
+}
+
+async function ensureDailyPlan(dateKey){
+  const { data, error } = await sb
+    .from('daily_plans')
+    .upsert({ plan_date: dateKey, updated_at: new Date().toISOString() }, { onConflict: 'plan_date' })
+    .select()
+    .single();
+  if(error) throw new Error(error.message);
+  state.currentPlanId = data.id;
+  return data;
+}
+
+function renderAll(){
+  renderSummaryPills();
+  renderGoals();
+  renderTodos();
+  renderEvents();
+  renderSelectedDateEvents();
+  renderTodayTodos();
+  renderSched(getSelectedDate());
+}
+
+function renderSummaryPills(){
+  const pending = state.tasks.filter(task => !task.is_done && task.is_active).length;
+  const overdue = state.tasks.filter(task => !task.is_done && task.is_active && isOverdue(task.deadline)).length;
+  const upcoming = state.events.filter(event => !event.is_done && !event.is_cancelled && event.is_active && event.event_date >= todayStr()).length;
+  let html = '';
+  if(overdue) html += `<span class="spill alert">${overdue} overdue</span>`;
+  html += `<span class="spill info">${pending} pending</span>`;
+  html += `<span class="spill">${upcoming} upcoming</span>`;
+  document.getElementById('summary-pills').innerHTML = html;
+}
+
+function showSection(id, btn){
+  document.querySelectorAll('.nav').forEach(node => node.classList.remove('active'));
+  btn.classList.add('active');
+  currentSection = id;
+  document.getElementById('sec-schedule').classList.toggle('active', id === 'schedule');
+  document.getElementById('sec-tasks').classList.toggle('active', id === 'tasks');
+  document.getElementById('tab-bar-tasks').style.display = id === 'tasks' ? 'flex' : 'none';
+  document.getElementById('topbar-add-btn').style.display = id === 'tasks' ? '' : 'none';
+  document.getElementById('page-title').textContent = id === 'schedule' ? 'Daily Schedule' : 'Tasks & Events';
+}
+
+function switchTab(tab, btn){
+  currentTab = tab;
+  document.querySelectorAll('#tab-bar-tasks .tab').forEach(node => node.classList.remove('active'));
+  btn.classList.add('active');
+  ['goals','todos','events'].forEach(view => document.getElementById(`view-${view}`).classList.toggle('active', view === tab));
+  const labels = { goals:'+ Add goal', todos:'+ Add to-do', events:'+ Add event' };
+  document.getElementById('topbar-add-btn').textContent = labels[tab] || '+ Add';
+}
+
+function topbarAdd(){
+  if(currentTab === 'goals') openModal('coretask');
+  else if(currentTab === 'todos') openModal('todo');
+  else openModal('event');
+}
+
+function switchTodoTab(tab, btn){
+  todoTab = tab;
+  document.querySelectorAll('#view-todos .seg-btn').forEach(node => node.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('card-pending').style.display = tab === 'pending' ? '' : 'none';
+  document.getElementById('card-done').style.display = tab === 'done' ? '' : 'none';
+  document.getElementById('card-cancelled').style.display = tab === 'cancelled' ? '' : 'none';
+}
+
+function switchGoalTab(tab, btn){
+  goalTab = tab;
+  document.querySelectorAll('#view-goals .seg-btn').forEach(node => node.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('goals-pending-card').style.display = tab === 'pending' ? '' : 'none';
+  document.getElementById('goals-done-card').style.display = tab === 'done' ? '' : 'none';
+  document.getElementById('goals-cancelled-card').style.display = tab === 'cancelled' ? '' : 'none';
+  document.getElementById('goals-add-row').style.display = tab === 'pending' ? '' : 'none';
+}
+
+function switchEventTab(tab, btn){
+  eventTab = tab;
+  document.querySelectorAll('#view-events .seg-btn').forEach(node => node.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('events-pending-card').style.display = tab === 'pending' ? '' : 'none';
+  document.getElementById('events-done-card').style.display = tab === 'done' ? '' : 'none';
+  document.getElementById('events-cancelled-card').style.display = tab === 'cancelled' ? '' : 'none';
+  document.getElementById('events-add-row').style.display = tab === 'pending' ? '' : 'none';
+}
+
+function renderGoals(){
+  const pendingGoals = state.goals.filter(goal => !goal.is_done && !goal.is_cancelled);
+  const doneGoals = state.goals.filter(goal => goal.is_done && !goal.is_cancelled);
+  const cancelledGoals = state.goals.filter(goal => goal.is_cancelled);
+  document.getElementById('ct-active').textContent = pendingGoals.length;
+  document.getElementById('ct-done').textContent = doneGoals.length;
+  document.getElementById('ct-cancelled').textContent = cancelledGoals.length;
+  document.getElementById('ct-total').textContent = state.goals.length;
+
+  const renderGoalRows = goals => goals.map(goal => `
+    <tr class="${goal.is_done ? 'dr' : ''}${goal.is_urgent || goal.is_important ? ' hl-row' : ''}">
+      <td class="c"><div class="cb ${goal.is_done ? 'checked' : ''}" onclick="toggleGoal('${goal.id}')"></div></td>
+      <td><input class="ec" value="${esc(goal.title)}" onchange="editGoal('${goal.id}','title',this.value)" /></td>
+      <td class="c"><div class="flag f-imp ${goal.is_important ? 'on' : ''}" onclick="toggleGoalFlag('${goal.id}','important')">${icoI(goal.is_important)}</div></td>
+      <td class="c"><div class="flag f-urg ${goal.is_urgent ? 'on' : ''}" onclick="toggleGoalFlag('${goal.id}','urgent')">${icoU(goal.is_urgent)}</div></td>
+      <td><select class="isel chip-select ${areaChipClass(goal.area)}" onchange="editGoal('${goal.id}','area',this.value)">
+        <option value="">—</option>${AREAS.map(area => `<option value="${esc(area)}"${goal.area === area ? ' selected' : ''}>${esc(area)}</option>`).join('')}
+      </select></td>
+      <td><input class="ec mu" type="date" value="${goal.target_completion_date || ''}" onchange="editGoal('${goal.id}','target_completion_date',this.value)" style="width:120px" /></td>
+      <td class="mu" style="font-size:11px">${fmtFull(goal.created_at?.slice(0,10))}</td>
+      <td class="c"><button class="del-btn" onclick="deleteGoal('${goal.id}')">×</button></td>
+      <td class="c"><div class="cb ${goal.is_cancelled ? 'checked' : ''}" onclick="toggleGoalCancelled('${goal.id}')"></div></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('goals-tbody').innerHTML = pendingGoals.length ? renderGoalRows(pendingGoals) : '<tr><td colspan="9"><div class="empty-state">No pending goals.</div></td></tr>';
+  document.getElementById('goals-done-tbody').innerHTML = doneGoals.length ? renderGoalRows(doneGoals) : '<tr><td colspan="9"><div class="empty-state">No completed goals.</div></td></tr>';
+  document.getElementById('goals-cancelled-tbody').innerHTML = cancelledGoals.length ? renderGoalRows(cancelledGoals) : '<tr><td colspan="9"><div class="empty-state">No cancelled goals.</div></td></tr>';
+}
+
+async function addCoreTask(){
+  const title = document.getElementById('ct-name').value.trim();
+  if(!title) return;
+  const area = document.getElementById('ct-goal').value;
+  const targetCompletionDate = document.getElementById('ct-target-date').value || null;
+  try{
+    const sortOrder = state.goals.length;
+    const { data, error } = await sb.from('goals').insert({ title, area: area || null, target_completion_date: targetCompletionDate, is_important: false, is_urgent: false, sort_order: sortOrder, is_done: false, is_cancelled: false, is_active: true }).select().single();
+    if(error) throw new Error(error.message);
+    state.goals.push(data);
+    document.getElementById('ct-name').value = '';
+    document.getElementById('ct-goal').value = '';
+    document.getElementById('ct-target-date').value = '';
+    renderGoals();
+    showToast('Goal added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function editGoal(goalId, field, value){
+  const updates = { updated_at: new Date().toISOString() };
+  updates[field] = value || null;
+  if(field === 'title') updates[field] = value.trim();
+  try{
+    const { error } = await sb.from('goals').update(updates).eq('id', goalId);
+    if(error) throw new Error(error.message);
+    const goal = getGoalById(goalId);
+    if(goal) goal[field] = updates[field];
+    renderGoals();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleGoal(goalId){
+  const goal = getGoalById(goalId);
+  if(!goal) return;
+  const nextValue = !goal.is_done;
+  try{
+    const { error } = await sb.from('goals').update({ is_done: nextValue, is_cancelled: false, updated_at: new Date().toISOString() }).eq('id', goalId);
+    if(error) throw new Error(error.message);
+    goal.is_done = nextValue;
+    goal.is_cancelled = false;
+    renderGoals();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleGoalCancelled(goalId){
+  const goal = getGoalById(goalId);
+  if(!goal) return;
+  const nextValue = !goal.is_cancelled;
+  try{
+    const { error } = await sb.from('goals').update({ is_cancelled: nextValue, is_done: nextValue ? false : goal.is_done, updated_at: new Date().toISOString() }).eq('id', goalId);
+    if(error) throw new Error(error.message);
+    goal.is_cancelled = nextValue;
+    if(nextValue) goal.is_done = false;
+    renderGoals();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleGoalFlag(goalId, flag){
+  const goal = getGoalById(goalId);
+  if(!goal) return;
+  const fieldMap = { important: 'is_important', urgent: 'is_urgent' };
+  const field = fieldMap[flag];
+  if(!field) return;
+  const nextValue = !goal[field];
+  try{
+    const { error } = await sb.from('goals').update({ [field]: nextValue, updated_at: new Date().toISOString() }).eq('id', goalId);
+    if(error) throw new Error(error.message);
+    goal[field] = nextValue;
+    renderGoals();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function deleteGoal(goalId){
+  try{
+    const { error } = await sb.from('goals').delete().eq('id', goalId);
+    if(error) throw new Error(error.message);
+    state.goals = state.goals.filter(goal => goal.id !== goalId);
+    renderGoals();
+    renderTodos();
+    showToast('Goal deleted');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function renderTodos(){
+  const filter = document.getElementById('td-filter').value;
+  let pending = state.tasks.filter(task => !task.is_done && !task.is_cancelled);
+  let done = state.tasks.filter(task => task.is_done && !task.is_cancelled);
+  let cancelled = state.tasks.filter(task => task.is_cancelled);
+  if(filter){
+    pending = pending.filter(task => task.category === filter);
+    done = done.filter(task => task.category === filter);
+    cancelled = cancelled.filter(task => task.category === filter);
+  }
+
+  pending = pending.map(getTaskView).sort((a,b) => {
+    const score = task => (task.urgent ? 4 : 0) + (task.important ? 2 : 0) + (task.today ? 1 : 0);
+    const delta = score(b) - score(a);
+    if(delta) return delta;
+    return (a.deadline || '9999-12-31').localeCompare(b.deadline || '9999-12-31');
+  });
+
+  document.getElementById('td-pending').textContent = state.tasks.filter(task => !task.is_done && !task.is_cancelled).length;
+  document.getElementById('td-done').textContent = state.tasks.filter(task => task.is_done && !task.is_cancelled).length;
+  document.getElementById('td-overdue').textContent = state.tasks.filter(task => !task.is_done && !task.is_cancelled && isOverdue(task.deadline)).length;
+  document.getElementById('td-total').textContent = state.tasks.length;
+
+  const goalOptions = ['<option value="">—</option>'].concat(
+    state.goals.filter(goal => !goal.is_done).map(goal => `<option value="${goal.id}">${esc(goal.title)}</option>`)
+  ).join('');
+
+  const pendingBody = document.getElementById('todos-pending-tbody');
+  if(!pending.length){
+    pendingBody.innerHTML = '<tr><td colspan="13"><div class="empty-state">Nothing pending.</div></td></tr>';
+  } else {
+    pendingBody.innerHTML = pending.map(task => {
+      const due = daysUntil(task.deadline);
+      let deadlineLabel = '';
+      let deadlineClass = 'mu';
+      if(due === 0){deadlineLabel = 'Today'; deadlineClass = 'ov';}
+      else if(due === 1) deadlineLabel = 'Tomorrow';
+      else if(due !== null && due < 0){deadlineLabel = `${Math.abs(due)}d overdue`; deadlineClass = 'ov';}
+      else if(task.deadline) deadlineLabel = fmtFull(task.deadline);
+      const highlighted = task.urgent || task.important;
+      const goal = getGoalById(task.goal_id);
+      const canMove = !!task.dayItem && task.dayItem.status === 'planned';
+      return `
+        <tr class="${highlighted ? 'hl-row' : ''}${task.highlight ? ' hl-bg' : ''}">
+          <td class="c"><div class="cb" onclick="toggleTodo('${task.id}')"></div></td>
+          <td><select class="isel chip-select ${catChipClass(task.category)}" onchange="editTask('${task.id}','category',this.value)">${CATS.map(cat => `<option value="${esc(cat)}"${task.category === cat ? ' selected' : ''}>${esc(cat)}</option>`).join('')}</select></td>
+          <td style="min-width:140px"><input class="ec" style="${highlighted ? 'font-weight:600' : ''}" value="${esc(task.title)}" onchange="editTask('${task.id}','title',this.value)" /></td>
+          <td class="c"><div class="flag f-today ${task.today ? 'on' : ''}" onclick="toggleFlag('${task.id}','today')">${icoT(task.today)}</div></td>
+          <td class="c"><div class="flag f-imp ${task.important ? 'on' : ''}" onclick="toggleFlag('${task.id}','important')">${icoI(task.important)}</div></td>
+          <td class="c"><div class="flag f-urg ${task.urgent ? 'on' : ''}" onclick="toggleFlag('${task.id}','urgent')">${icoU(task.urgent)}</div></td>
+          <td><select class="isel" style="max-width:115px" onchange="editTaskGoal('${task.id}',this.value)">${goalOptions.replace(`value="${task.goal_id || ''}"`, `value="${task.goal_id || ''}" selected`)}</select></td>
+          <td><select class="isel chip-select ${areaChipClass(task.area)}" onchange="editTask('${task.id}','area',this.value)">
+            <option value="">—</option>${AREAS.map(area => `<option value="${esc(area)}"${task.area === area ? ' selected' : ''}>${esc(area)}</option>`).join('')}
+          </select></td>
+          <td class="${deadlineClass}"><input class="ec mu" value="${deadlineLabel}" placeholder="dd mmm yyyy" onchange="editTaskDeadlineText('${task.id}',this.value)" /></td>
+          <td>${canMove ? `<button class="btn-ghost" onclick="openMoveTaskModal('${task.id}')">Move</button>` : '<span class="mu">—</span>'}</td>
+          <td class="mu" style="font-size:11px">${fmtFull(task.created_at?.slice(0,10))}</td>
+          <td class="c"><button class="del-btn" onclick="deleteTask('${task.id}')">×</button></td>
+          <td class="c"><div class="cb ${task.is_cancelled ? 'checked' : ''}" onclick="toggleTaskCancelled('${task.id}')"></div></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const doneBody = document.getElementById('todos-done-tbody');
+  if(!done.length){
+    doneBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Nothing completed yet.</div></td></tr>';
+  } else {
+    doneBody.innerHTML = done.map(task => `
+      <tr class="dr">
+        <td class="c"><div class="cb checked" onclick="toggleTodo('${task.id}')"></div></td>
+        <td>${catChip(task.category)}</td>
+        <td>${esc(task.title)}</td>
+        <td>${areaChip(task.area)}</td>
+        <td class="mu" style="font-size:11.5px">${fmtFull(task.deadline)}</td>
+        <td class="mu" style="font-size:11px">${fmtFull(task.created_at?.slice(0,10))}</td>
+        <td class="mu" style="font-size:11px">${fmtFull(task.completed_at)}</td>
+        <td class="c"><button class="del-btn" onclick="deleteTask('${task.id}')">×</button></td>
+        <td class="c"><div class="cb ${task.is_cancelled ? 'checked' : ''}" onclick="toggleTaskCancelled('${task.id}')"></div></td>
+      </tr>
+    `).join('');
+  }
+
+  const cancelledBody = document.getElementById('todos-cancelled-tbody');
+  if(!cancelled.length){
+    cancelledBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Nothing cancelled.</div></td></tr>';
+  } else {
+    cancelledBody.innerHTML = cancelled.map(task => `
+      <tr class="dr">
+        <td class="c"><div class="cb ${task.is_done ? 'checked' : ''}" onclick="toggleTodo('${task.id}')"></div></td>
+        <td>${catChip(task.category)}</td>
+        <td>${esc(task.title)}</td>
+        <td>${areaChip(task.area)}</td>
+        <td class="mu" style="font-size:11.5px">${fmtFull(task.deadline)}</td>
+        <td class="mu" style="font-size:11px">${fmtFull(task.created_at?.slice(0,10))}</td>
+        <td class="c"><button class="del-btn" onclick="deleteTask('${task.id}')">×</button></td>
+        <td class="c"><div class="cb checked" onclick="toggleTaskCancelled('${task.id}')"></div></td>
+      </tr>
+    `).join('');
+  }
+
+  renderSummaryPills();
+  if(currentSection === 'schedule') renderTodayTodos();
+}
+
+async function addTodo(){
+  const title = document.getElementById('td-name').value.trim();
+  if(!title) return;
+  try{
+    const { data, error } = await sb.from('tasks').insert({
+      title,
+      category: document.getElementById('td-cat').value || null,
+      area: null,
+      goal_id: null,
+      deadline: document.getElementById('td-deadline').value || null,
+      is_done: false,
+      is_cancelled: false,
+      is_active: true,
+    }).select().single();
+    if(error) throw new Error(error.message);
+    state.tasks.push(data);
+    document.getElementById('td-name').value = '';
+    document.getElementById('td-deadline').value = '';
+    renderTodos();
+    showToast('Task added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function editTask(taskId, field, value){
+  const task = state.tasks.find(item => item.id === taskId);
+  if(!task) return;
+  const updates = { updated_at: new Date().toISOString() };
+  if(field === 'title') updates.title = value.trim();
+  else updates[field] = value || null;
+  try{
+    const { error } = await sb.from('tasks').update(updates).eq('id', taskId);
+    if(error) throw new Error(error.message);
+    Object.assign(task, updates);
+    renderTodos();
+    renderTodayTodos();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function editTaskGoal(taskId, goalId){
+  await editTask(taskId, 'goal_id', goalId);
+}
+
+async function editTaskDeadlineText(taskId, value){
+  let iso = '';
+  if(value){
+    const asIso = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+    if(asIso) iso = asIso;
+    else {
+      const parsed = new Date(`${value} 2000`);
+      if(!Number.isNaN(parsed.getTime())) iso = parsed.toISOString().slice(0,10);
+    }
+  }
+  await editTask(taskId, 'deadline', iso);
+}
+
+async function toggleTodo(taskId, options = {}){
+  const task = state.tasks.find(item => item.id === taskId);
+  if(!task) return;
+  const nextDone = !task.is_done;
+  const preserveFocus = !!options.preserveFocus;
+  try{
+    const updates = { is_done: nextDone, is_cancelled: false, completed_at: nextDone ? todayStr() : null, updated_at: new Date().toISOString() };
+    const { error } = await sb.from('tasks').update(updates).eq('id', taskId);
+    if(error) throw new Error(error.message);
+    Object.assign(task, updates);
+
+    const dayItem = getCurrentTaskItem(taskId);
+    if(dayItem){
+      const itemUpdates = nextDone
+        ? { status: 'done', is_today_focus: preserveFocus ? true : false, is_highlight: false, updated_at: new Date().toISOString() }
+        : { status: 'planned', is_today_focus: preserveFocus ? true : dayItem.is_today_focus, updated_at: new Date().toISOString() };
+      const { error: itemErr } = await sb.from('daily_plan_items').update(itemUpdates).eq('id', dayItem.id);
+      if(itemErr) throw new Error(itemErr.message);
+    }
+
+    await loadCurrentDateItems();
+    renderTodos();
+    renderTodayTodos();
+    renderSummaryPills();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleTaskCancelled(taskId){
+  const task = state.tasks.find(item => item.id === taskId);
+  if(!task) return;
+  const nextCancelled = !task.is_cancelled;
+  try{
+    const updates = { is_cancelled: nextCancelled, is_done: nextCancelled ? false : task.is_done, completed_at: nextCancelled ? null : task.completed_at, updated_at: new Date().toISOString() };
+    const { error } = await sb.from('tasks').update(updates).eq('id', taskId);
+    if(error) throw new Error(error.message);
+    Object.assign(task, updates);
+    if(state.currentPlanId){
+      const plannerUpdates = nextCancelled
+        ? { status: 'cancelled', is_today_focus: false, is_highlight: false, updated_at: new Date().toISOString() }
+        : { status: 'planned', updated_at: new Date().toISOString() };
+      const { error: itemErr } = await sb.from('daily_plan_items').update(plannerUpdates).eq('daily_plan_id', state.currentPlanId).eq('task_id', taskId).in('status', ['planned','done','cancelled']);
+      if(itemErr) throw new Error(itemErr.message);
+    }
+    await loadCurrentDateItems();
+    renderTodos();
+    renderTodayTodos();
+    renderSummaryPills();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function ensureTaskPlannerItem(taskId){
+  const existing = getCurrentTaskItem(taskId);
+  if(existing) return existing;
+  const task = state.tasks.find(item => item.id === taskId);
+  if(!task) throw new Error('Task not found.');
+  if(!task.id) throw new Error('Task record is missing its database id.');
+  const plan = await ensureDailyPlan(getSelectedDate());
+  const sortOrder = state.currentDateItems.filter(item => item.item_type === 'task').length;
+  const payload = {
+    daily_plan_id: plan.id,
+    item_type: 'task',
+    task_id: task.id,
+    event_id: null,
+    title_snapshot: task.title,
+    category_snapshot: task.category,
+    area_snapshot: task.area,
+    status: task.is_done ? 'done' : 'planned',
+    is_today_focus: false,
+    is_important: false,
+    is_urgent: false,
+    is_highlight: false,
+    time_text: null,
+    note_text: null,
+    sort_order: sortOrder,
+    source_plan_item_id: null,
+    moved_to_plan_item_id: null,
+  };
+  const { data, error } = await sb.from('daily_plan_items').insert(payload).select().single();
+  if(error){
+    showPlannerInsertDebug('ensureTaskPlannerItem', payload, error);
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+async function toggleFlag(taskId, flag){
+  const fieldMap = {
+    today: 'is_today_focus',
+    important: 'is_important',
+    urgent: 'is_urgent',
+    highlight: 'is_highlight',
+  };
+  const dbField = fieldMap[flag];
+  if(!dbField) return;
+
+  try{
+    let item = getCurrentTaskItem(taskId);
+    if(!item) item = await ensureTaskPlannerItem(taskId);
+    const nextValue = !item[dbField];
+    const { error } = await sb.from('daily_plan_items').update({ [dbField]: nextValue, updated_at: new Date().toISOString() }).eq('id', item.id);
+    if(error) throw new Error(error.message);
+    await loadCurrentDateItems();
+    renderTodos();
+    renderTodayTodos();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function deleteTask(taskId){
+  try{
+    const { error } = await sb.from('tasks').delete().eq('id', taskId);
+    if(error) throw new Error(error.message);
+    state.tasks = state.tasks.filter(task => task.id !== taskId);
+    state.currentDateItems = state.currentDateItems.filter(item => item.task_id !== taskId);
+    renderTodos();
+    renderTodayTodos();
+    renderSummaryPills();
+    showToast('Task deleted');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function renderTodayTodos(){
+  const selectedDate = getSelectedDate();
+  const taskItems = state.currentDateItems.filter(item => item.item_type === 'task');
+  const todayItems = taskItems.filter(item => item.status === 'planned' && item.is_today_focus).sort((a,b) => (b.is_highlight ? 1 : 0) - (a.is_highlight ? 1 : 0) || a.title_snapshot.localeCompare(b.title_snapshot));
+  const doneItems = taskItems.filter(item => item.status === 'done');
+
+  const todoBody = document.getElementById('today-todo-tbody');
+  if(!todayItems.length){
+    todoBody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No focused items for ${fmtFull(selectedDate)}.</div></td></tr>`;
+  } else {
+    todoBody.innerHTML = todayItems.map(item => `
+      <tr class="${item.is_highlight ? 'hl-bg' : ''}">
+        <td class="c"><div class="cb" onclick="todayToggleDone('${item.task_id}')"></div></td>
+        <td>${catChip(item.category_snapshot)}</td>
+        <td style="font-weight:${item.is_highlight ? 700 : 400}">${esc(item.title_snapshot)}</td>
+        <td><button class="btn-ghost" onclick="openMoveTaskModal('${item.task_id}')">Move</button></td>
+        <td class="c"><div class="cb-star ${item.is_highlight ? 'on' : ''}" onclick="toggleHighlight('${item.task_id}')">${icoStar(item.is_highlight)}</div></td>
+      </tr>
+    `).join('');
+  }
+
+  const doneBody = document.getElementById('today-done-tbody');
+  if(!doneItems.length){
+    doneBody.innerHTML = `<tr><td colspan="3"><div class="empty-state">Nothing completed for ${fmtFull(selectedDate)}.</div></td></tr>`;
+  } else {
+    doneBody.innerHTML = doneItems.map(item => `
+      <tr class="dr">
+        <td class="c"><div class="cb checked" onclick="todayToggleDone('${item.task_id}')"></div></td>
+        <td>${catChip(item.category_snapshot)}</td>
+        <td>${esc(item.title_snapshot)}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+async function todayToggleDone(taskId){
+  await toggleTodo(taskId, { preserveFocus: true });
+}
+
+async function toggleHighlight(taskId){
+  await toggleFlag(taskId, 'highlight');
+}
+
+function renderSelectedDateEvents(){
+  const selectedDate = getSelectedDate();
+  const events = state.events
+    .filter(event => event.event_date === selectedDate && !event.is_cancelled)
+    .sort((a, b) => (a.event_time || '99:99').localeCompare(b.event_time || '99:99') || a.title.localeCompare(b.title));
+
+  const card = document.getElementById('selected-date-events-card');
+  const list = document.getElementById('selected-date-events-list');
+  const meta = document.getElementById('selected-date-events-meta');
+
+  if(!events.length){
+    card.style.display = 'none';
+    list.innerHTML = '';
+    meta.textContent = '';
+    return;
+  }
+
+  card.style.display = '';
+  meta.textContent = `${events.length} event${events.length === 1 ? '' : 's'} on ${fmtFull(selectedDate)}`;
+  list.innerHTML = events.map(event => `
+    <div class="event-day-item">
+      <div class="event-day-main">
+        <div class="event-day-title">${esc(event.title)}</div>
+        <div class="event-day-meta">
+          ${event.event_time ? `<span>${esc(event.event_time)}</span>` : '<span>Time not set</span>'}
+          ${event.venue ? `<span>${esc(event.venue)}</span>` : ''}
+        </div>
+      </div>
+      ${event.category ? `<span class="chip ${eventCatChipClass(event.category)}">${esc(event.category)}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderEvents(){
+  const today = todayStr();
+  document.getElementById('ev-upcoming').textContent = state.events.filter(event => !event.is_done && !event.is_cancelled && event.event_date >= today).length;
+  document.getElementById('ev-done').textContent = state.events.filter(event => event.is_done).length;
+  document.getElementById('ev-cancelled').textContent = state.events.filter(event => event.is_cancelled).length;
+  document.getElementById('ev-total').textContent = state.events.length;
+
+  const pendingEvents = state.events.filter(event => !event.is_done && !event.is_cancelled);
+  const doneEvents = state.events.filter(event => event.is_done && !event.is_cancelled);
+  const cancelledEvents = state.events.filter(event => event.is_cancelled);
+  const renderEventRows = events => events.map(event => `
+    <tr class="${event.is_done ? 'dr' : ''}">
+      <td class="c"><div class="cb ${event.is_done ? 'checked' : ''}" onclick="toggleEvent('${event.id}')"></div></td>
+      <td><input class="ec event-title-input" value="${esc(event.title)}" onchange="editEvent('${event.id}','title',this.value)" /></td>
+      <td><input class="ec mu" type="date" value="${event.event_date || ''}" onchange="editEvent('${event.id}','event_date',this.value)" style="width:105px" /></td>
+      <td><input class="ec mu" type="time" value="${event.event_time || ''}" onchange="editEvent('${event.id}','event_time',this.value)" style="width:72px" /></td>
+      <td><input class="ec mu event-venue-input" value="${esc(event.venue)}" placeholder="—" onchange="editEvent('${event.id}','venue',this.value)" /></td>
+      <td><select class="isel chip-select ${eventCatChipClass(event.category)}" onchange="editEvent('${event.id}','category',this.value)">
+        <option value="">—</option>${EVENT_CATS.map(cat => `<option value="${esc(cat)}"${event.category === cat ? ' selected' : ''}>${esc(cat)}</option>`).join('')}
+      </select></td>
+      <td class="c"><button class="del-btn" onclick="deleteEvent('${event.id}')">×</button></td>
+      <td class="c"><div class="cb ${event.is_cancelled ? 'checked' : ''}" onclick="toggleEventCancelled('${event.id}')"></div></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('events-tbody').innerHTML = pendingEvents.length ? renderEventRows(pendingEvents) : '<tr><td colspan="8"><div class="empty-state">No pending events.</div></td></tr>';
+  document.getElementById('events-done-tbody').innerHTML = doneEvents.length ? renderEventRows(doneEvents) : '<tr><td colspan="8"><div class="empty-state">No completed events.</div></td></tr>';
+  document.getElementById('events-cancelled-tbody').innerHTML = cancelledEvents.length ? renderEventRows(cancelledEvents) : '<tr><td colspan="8"><div class="empty-state">No cancelled events.</div></td></tr>';
+
+  renderSummaryPills();
+}
+
+async function addEvent(){
+  const title = document.getElementById('ev-name').value.trim();
+  if(!title) return;
+  try{
+    const { data, error } = await sb.from('events').insert({
+      title,
+      event_date: document.getElementById('ev-date').value || null,
+      event_time: document.getElementById('ev-time').value || null,
+      venue: document.getElementById('ev-venue').value.trim() || null,
+      category: null,
+      is_done: false,
+      is_cancelled: false,
+      is_active: true,
+    }).select().single();
+    if(error) throw new Error(error.message);
+    state.events.push(data);
+    ['ev-name','ev-date','ev-time','ev-venue'].forEach(id => { document.getElementById(id).value = ''; });
+    renderEvents();
+    showToast('Event added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function editEvent(eventId, field, value){
+  const event = state.events.find(item => item.id === eventId);
+  if(!event) return;
+  const updates = { updated_at: new Date().toISOString() };
+  updates[field] = value || null;
+  if(field === 'title') updates[field] = value.trim();
+  try{
+    const { error } = await sb.from('events').update(updates).eq('id', eventId);
+    if(error) throw new Error(error.message);
+    Object.assign(event, updates);
+    renderEvents();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleEvent(eventId){
+  const event = state.events.find(item => item.id === eventId);
+  if(!event) return;
+  const nextDone = !event.is_done;
+  try{
+    const { error } = await sb.from('events').update({ is_done: nextDone, is_cancelled: false, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if(error) throw new Error(error.message);
+    event.is_done = nextDone;
+    event.is_cancelled = false;
+    renderEvents();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function toggleEventCancelled(eventId){
+  const event = state.events.find(item => item.id === eventId);
+  if(!event) return;
+  const nextCancelled = !event.is_cancelled;
+  try{
+    const { error } = await sb.from('events').update({ is_cancelled: nextCancelled, is_done: nextCancelled ? false : event.is_done, updated_at: new Date().toISOString() }).eq('id', eventId);
+    if(error) throw new Error(error.message);
+    event.is_cancelled = nextCancelled;
+    if(nextCancelled) event.is_done = false;
+    renderEvents();
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function deleteEvent(eventId){
+  try{
+    const { error } = await sb.from('events').delete().eq('id', eventId);
+    if(error) throw new Error(error.message);
+    state.events = state.events.filter(event => event.id !== eventId);
+    state.currentDateItems = state.currentDateItems.filter(item => item.event_id !== eventId);
+    renderSelectedDateEvents();
+    renderEvents();
+    showToast('Event deleted');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function nowTime(){
+  const now = new Date();
+  return `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+function toggleAutoTime(){
+  autoTime = !autoTime;
+  document.getElementById('at-track').style.background = autoTime ? '#534AB7' : '#d0d5e0';
+  document.getElementById('at-knob').style.left = autoTime ? '14px' : '2px';
+}
+
+async function loadSchedule(){
+  try{
+    await loadCurrentDateItems();
+    renderTodos();
+    renderTodayTodos();
+    renderSched(getSelectedDate());
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function renderSched(dateKey){
+  const el = document.getElementById('sched-grid');
+  const slots = state.currentDateItems.filter(item => item.item_type === 'schedule_entry');
+  if(!slots.length){
+    el.innerHTML = '<div class="empty-state">No entries yet — click + Entry to start logging.</div>';
+    return;
+  }
+  el.innerHTML = slots.map(slot => `
+    <div class="sched-row">
+      <div class="sched-time"><input type="text" value="${esc(slot.time_text)}" placeholder="e.g. 7:20" onchange="updateSlot('${slot.id}','time_text',this.value)"/></div>
+      <div class="sched-act"><input type="text" value="${esc(slot.title_snapshot)}" placeholder="What did you do?" onchange="updateSlot('${slot.id}','title_snapshot',this.value)"/></div>
+      <div class="sched-note"><input type="text" value="${esc(slot.note_text)}" placeholder="Note" onchange="updateSlot('${slot.id}','note_text',this.value)"/></div>
+      <div class="sched-del"><button class="del-btn" onclick="removeSlot('${slot.id}')">×</button></div>
+    </div>
+  `).join('');
+}
+
+async function addSlot(){
+  try{
+    const plan = await ensureDailyPlan(getSelectedDate());
+    const sortOrder = state.currentDateItems.filter(item => item.item_type === 'schedule_entry').length;
+    const payload = {
+      daily_plan_id: plan.id,
+      item_type: 'schedule_entry',
+      task_id: null,
+      event_id: null,
+      title_snapshot: '',
+      category_snapshot: null,
+      area_snapshot: null,
+      status: 'planned',
+      is_today_focus: false,
+      is_important: false,
+      is_urgent: false,
+      is_highlight: false,
+      time_text: autoTime ? nowTime() : '',
+      note_text: '',
+      sort_order: sortOrder,
+      source_plan_item_id: null,
+      moved_to_plan_item_id: null,
+    };
+    const { error } = await sb.from('daily_plan_items').insert(payload);
+    if(error){
+      showPlannerInsertDebug('addSlot', payload, error);
+      throw new Error(error.message);
+    }
+    await loadCurrentDateItems();
+    renderSched(getSelectedDate());
+    setTimeout(() => {
+      const rows = document.querySelectorAll('#sched-grid .sched-time input');
+      if(rows.length){
+        const input = rows[rows.length - 1];
+        input.focus();
+        if(autoTime) input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 50);
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function updateSlot(itemId, field, value){
+  try{
+    const { error } = await sb.from('daily_plan_items').update({ [field]: value || null, updated_at: new Date().toISOString() }).eq('id', itemId);
+    if(error) throw new Error(error.message);
+    const item = state.currentDateItems.find(entry => entry.id === itemId);
+    if(item) item[field] = value || null;
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function removeSlot(itemId){
+  try{
+    const { error } = await sb.from('daily_plan_items').delete().eq('id', itemId);
+    if(error) throw new Error(error.message);
+    state.currentDateItems = state.currentDateItems.filter(item => item.id !== itemId);
+    renderSched(getSelectedDate());
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function openModal(type){
+  modalType = type;
+  const titleMap = {
+    event: 'Add event',
+    coretask: 'Add goal',
+    todo: 'Add to-do item',
+    move_task: 'Move task',
+  };
+  document.getElementById('modal-title').textContent = titleMap[type] || 'Add';
+
+  const areaOpts = `<option value="">— none —</option>${AREAS.map(area => `<option>${esc(area)}</option>`).join('')}`;
+  const goalOpts = `<option value="">— none —</option>${state.goals.filter(goal => !goal.is_done).map(goal => `<option value="${goal.id}">${esc(goal.title)}</option>`).join('')}`;
+
+  let html = '';
+  if(type === 'event'){
+    html = `<div class="form-grid">
+      <div class="fg" style="grid-column:1/-1"><label>Event name</label><input id="m-ev-name" placeholder="e.g. BG Gathering"></div>
+      <div class="fg"><label>Date</label><input id="m-ev-date" type="date"></div>
+      <div class="fg"><label>Time (optional)</label><input id="m-ev-time" type="time"></div>
+      <div class="fg"><label>Venue</label><input id="m-ev-venue" placeholder="e.g. Gaga's Home"></div>
+      <div class="fg"><label>Category</label><select id="m-ev-cat"><option value="">—</option>${EVENT_CATS.map(cat => `<option>${esc(cat)}</option>`).join('')}</select></div>
+    </div>`;
+    modalSaveHandler = saveEventModal;
+  } else if(type === 'coretask'){
+    html = `<div class="form-grid">
+      <div class="fg" style="grid-column:1/-1"><label>Goal name</label><input id="m-ct-name" placeholder="e.g. Learn Vibe Coding"></div>
+      <div class="fg"><label>Area</label><select id="m-ct-goal">${areaOpts}</select></div>
+      <div class="fg"><label>Target completion</label><input id="m-ct-target-date" type="date"></div>
+    </div>`;
+    modalSaveHandler = saveGoalModal;
+  } else if(type === 'todo'){
+    html = `<div class="form-grid">
+      <div class="fg" style="grid-column:1/-1"><label>Item name</label><input id="m-td-name" placeholder="e.g. Build planner flow"></div>
+      <div class="fg"><label>Category</label><select id="m-td-cat">${CATS.map(cat => `<option>${esc(cat)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Area</label><select id="m-td-area">${areaOpts}</select></div>
+      <div class="fg"><label>Deadline</label><input id="m-td-deadline" type="date"></div>
+      <div class="fg" style="grid-column:1/-1"><label>Linked goal</label><select id="m-td-linked">${goalOpts}</select></div>
+    </div>`;
+    modalSaveHandler = saveTaskModal;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-save-btn').textContent = type === 'disconnect' ? 'Disconnect' : 'Save';
+  document.getElementById('modal-save-btn').onclick = () => modalSaveHandler && modalSaveHandler();
+  document.getElementById('modal-bg').classList.add('open');
+  setTimeout(() => {
+    const firstInput = document.querySelector('.modal-body input');
+    if(firstInput) firstInput.focus();
+  }, 80);
+}
+
+function openMoveTaskModal(taskId){
+  const task = state.tasks.find(item => item.id === taskId);
+  if(!task) return;
+  modalType = 'move_task';
+  document.getElementById('modal-title').textContent = 'Move task';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="fg">
+      <label>Task</label>
+      <input value="${esc(task.title)}" disabled>
+    </div>
+    <div class="fg">
+      <label>Move from</label>
+      <input value="${esc(getSelectedDate())}" disabled>
+    </div>
+    <div class="fg">
+      <label>Move to date</label>
+      <input id="m-move-date" type="date" value="${getSelectedDate()}">
+    </div>
+  `;
+  modalSaveHandler = () => moveTaskToDate(taskId);
+  document.getElementById('modal-save-btn').textContent = 'Move';
+  document.getElementById('modal-save-btn').onclick = () => modalSaveHandler && modalSaveHandler();
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+async function saveGoalModal(){
+  const title = document.getElementById('m-ct-name').value.trim();
+  if(!title) return;
+  try{
+    const { data, error } = await sb.from('goals').insert({
+      title,
+      area: document.getElementById('m-ct-goal').value || null,
+      target_completion_date: document.getElementById('m-ct-target-date').value || null,
+      sort_order: state.goals.length,
+      is_important: false,
+      is_urgent: false,
+      is_done: false,
+      is_cancelled: false,
+      is_active: true,
+    }).select().single();
+    if(error) throw new Error(error.message);
+    state.goals.push(data);
+    closeModal();
+    renderGoals();
+    renderTodos();
+    showToast('Goal added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function renderTagRows(kind, entries){
+  return entries.map((entry, index) => `
+    <div class="tag-row">
+      <input data-tag-kind="${kind}" data-tag-index="${index}" data-tag-field="label" value="${esc(entry.label)}" placeholder="Label">
+      <select data-tag-kind="${kind}" data-tag-index="${index}" data-tag-field="color">
+        ${COLOR_OPTIONS.map(option => `<option value="${option.value}"${entry.color === option.value ? ' selected' : ''}>${option.label}</option>`).join('')}
+      </select>
+      <span class="chip chip-select tag-color-preview ${entry.color}">${esc(entry.label)}</span>
+    </div>
+  `).join('');
+}
+
+function renderTagGroup(kind, title, entries){
+  return `
+    <div class="tag-group">
+      <div class="tag-group-head">
+        <div class="tag-group-title">${title}</div>
+        <button class="btn-ghost" type="button" onclick="addTagRow('${kind}')">+ Add tag</button>
+      </div>
+      <div id="tag-group-${kind}">
+        ${renderTagRows(kind, entries)}
+      </div>
+    </div>
+  `;
+}
+
+function openTagManagerModal(){
+  modalType = 'manage_tags';
+  document.getElementById('modal-title').textContent = 'Manage tags';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="tag-manager">
+      ${renderTagGroup('areas', 'Areas', tagConfig.areas)}
+      ${renderTagGroup('taskCategories', 'Task categories', tagConfig.taskCategories)}
+      ${renderTagGroup('eventCategories', 'Event categories', tagConfig.eventCategories)}
+    </div>
+  `;
+  modalSaveHandler = saveTagManagerModal;
+  document.getElementById('modal-save-btn').textContent = 'Save tags';
+  document.getElementById('modal-save-btn').onclick = () => modalSaveHandler && modalSaveHandler();
+  document.getElementById('modal-bg').classList.add('open');
+
+  document.querySelectorAll('[data-tag-field="label"], [data-tag-field="color"]').forEach(control => {
+    control.addEventListener('input', refreshTagPreview);
+    control.addEventListener('change', refreshTagPreview);
+  });
+}
+
+function addTagRow(kind){
+  const group = document.getElementById(`tag-group-${kind}`);
+  if(!group) return;
+  const nextIndex = group.querySelectorAll('.tag-row').length;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = renderTagRows(kind, [{ label:'', color:'chip-gray' }]).replaceAll('data-tag-index="0"', `data-tag-index="${nextIndex}"`);
+  const row = wrapper.firstElementChild;
+  group.appendChild(row);
+  row.querySelectorAll('[data-tag-field="label"], [data-tag-field="color"]').forEach(control => {
+    control.addEventListener('input', refreshTagPreview);
+    control.addEventListener('change', refreshTagPreview);
+  });
+  const input = row.querySelector('[data-tag-field="label"]');
+  if(input) input.focus();
+}
+
+function refreshTagPreview(event){
+  const row = event.target.closest('.tag-row');
+  if(!row) return;
+  const labelInput = row.querySelector('[data-tag-field="label"]');
+  const colorSelect = row.querySelector('[data-tag-field="color"]');
+  const preview = row.querySelector('.tag-color-preview');
+  preview.textContent = labelInput.value.trim() || 'Preview';
+  preview.className = `chip chip-select tag-color-preview ${colorSelect.value}`;
+}
+
+async function renameColumnValues(tableName, columnName, renames){
+  for(const rename of renames){
+    const { error } = await sb.from(tableName).update({ [columnName]: rename.next, updated_at: new Date().toISOString() }).eq(columnName, rename.prev);
+    if(error) throw new Error(error.message);
+  }
+}
+
+async function saveTagManagerModal(){
+  const nextConfig = { areas: [], taskCategories: [], eventCategories: [] };
+  const controls = Array.from(document.querySelectorAll('[data-tag-kind][data-tag-index][data-tag-field]'));
+  const grouped = {};
+
+  for(const control of controls){
+    const kind = control.dataset.tagKind;
+    const index = Number(control.dataset.tagIndex);
+    grouped[kind] ??= {};
+    grouped[kind][index] ??= {};
+    grouped[kind][index][control.dataset.tagField] = control.value;
+  }
+
+  for(const kind of Object.keys(nextConfig)){
+    const entries = Object.entries(grouped[kind] || {})
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([, entry]) => ({
+        label: String(entry.label || '').trim(),
+        color: entry.color || 'chip-gray',
+      }));
+    if(entries.some(entry => !entry.label)){
+      showToast('Tag labels cannot be blank.', true);
+      return;
+    }
+    const uniqueLabels = new Set(entries.map(entry => entry.label));
+    if(entries.length !== uniqueLabels.size){
+      showToast('Tag labels within the same group must be unique.', true);
+      return;
+    }
+    nextConfig[kind] = entries;
+  }
+
+  const areaRenames = tagConfig.areas
+    .map((entry, index) => ({ prev: entry.label, next: nextConfig.areas[index]?.label }))
+    .filter(entry => entry.next && entry.prev !== entry.next);
+  const taskCategoryRenames = tagConfig.taskCategories
+    .map((entry, index) => ({ prev: entry.label, next: nextConfig.taskCategories[index]?.label }))
+    .filter(entry => entry.next && entry.prev !== entry.next);
+  const eventCategoryRenames = tagConfig.eventCategories
+    .map((entry, index) => ({ prev: entry.label, next: nextConfig.eventCategories[index]?.label }))
+    .filter(entry => entry.next && entry.prev !== entry.next);
+
+  try{
+    if(areaRenames.length){
+      await renameColumnValues('goals', 'area', areaRenames);
+      await renameColumnValues('tasks', 'area', areaRenames);
+      state.goals.forEach(goal => {
+        const rename = areaRenames.find(entry => entry.prev === goal.area);
+        if(rename) goal.area = rename.next;
+      });
+      state.tasks.forEach(task => {
+        const rename = areaRenames.find(entry => entry.prev === task.area);
+        if(rename) task.area = rename.next;
+      });
+      state.currentDateItems.forEach(item => {
+        const rename = areaRenames.find(entry => entry.prev === item.area_snapshot);
+        if(rename) item.area_snapshot = rename.next;
+      });
+    }
+
+    if(taskCategoryRenames.length){
+      await renameColumnValues('tasks', 'category', taskCategoryRenames);
+      state.tasks.forEach(task => {
+        const rename = taskCategoryRenames.find(entry => entry.prev === task.category);
+        if(rename) task.category = rename.next;
+      });
+      state.currentDateItems.forEach(item => {
+        const rename = taskCategoryRenames.find(entry => entry.prev === item.category_snapshot);
+        if(rename) item.category_snapshot = rename.next;
+      });
+    }
+
+    if(eventCategoryRenames.length){
+      await renameColumnValues('events', 'category', eventCategoryRenames);
+      state.events.forEach(item => {
+        const rename = eventCategoryRenames.find(entry => entry.prev === item.category);
+        if(rename) item.category = rename.next;
+      });
+    }
+
+    tagConfig = nextConfig;
+    applyTagConfig();
+    saveTagConfig();
+    renderStaticOptions();
+    closeModal();
+    renderAll();
+    showToast('Tags updated');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function saveTaskModal(){
+  const title = document.getElementById('m-td-name').value.trim();
+  if(!title) return;
+  try{
+    const { data, error } = await sb.from('tasks').insert({
+      title,
+      category: document.getElementById('m-td-cat').value || null,
+      area: document.getElementById('m-td-area').value || null,
+      goal_id: document.getElementById('m-td-linked').value || null,
+      deadline: document.getElementById('m-td-deadline').value || null,
+      is_done: false,
+      is_active: true,
+    }).select().single();
+    if(error) throw new Error(error.message);
+    state.tasks.push(data);
+    closeModal();
+    renderTodos();
+    renderSummaryPills();
+    showToast('Task added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function saveEventModal(){
+  const title = document.getElementById('m-ev-name').value.trim();
+  if(!title) return;
+  try{
+    const { data, error } = await sb.from('events').insert({
+      title,
+      event_date: document.getElementById('m-ev-date').value || null,
+      event_time: document.getElementById('m-ev-time').value || null,
+      venue: document.getElementById('m-ev-venue').value.trim() || null,
+      category: document.getElementById('m-ev-cat').value || null,
+      is_done: false,
+      is_cancelled: false,
+      is_active: true,
+    }).select().single();
+    if(error) throw new Error(error.message);
+    state.events.push(data);
+    closeModal();
+    renderEvents();
+    showToast('Event added');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+async function moveTaskToDate(taskId){
+  const targetDate = document.getElementById('m-move-date').value;
+  const sourceDate = getSelectedDate();
+  if(!targetDate){
+    showToast('Please choose a target date.', true);
+    return;
+  }
+  if(targetDate === sourceDate){
+    closeModal();
+    return;
+  }
+
+  const sourceItem = getCurrentTaskItem(taskId);
+  if(!sourceItem || sourceItem.status !== 'planned'){
+    showToast('Only planned items on the selected date can be moved.', true);
+    return;
+  }
+
+  try{
+    const { data: targetPlans, error: targetPlanLookupErr } = await sb.from('daily_plans').select('*').eq('plan_date', targetDate).limit(1);
+    if(targetPlanLookupErr) throw new Error(targetPlanLookupErr.message);
+    let targetPlan = (targetPlans || [])[0] || null;
+    if(!targetPlan){
+      const createdPlan = await ensureDailyPlan(targetDate);
+      targetPlan = createdPlan;
+    }
+
+    const { data: existingRows, error: existingErr } = await sb
+      .from('daily_plan_items')
+      .select('id')
+      .eq('daily_plan_id', targetPlan.id)
+      .eq('item_type', 'task')
+      .eq('task_id', taskId)
+      .in('status', ['planned','done'])
+      .limit(1);
+    if(existingErr) throw new Error(existingErr.message);
+    if((existingRows || []).length){
+      throw new Error('This task already exists on the target date.');
+    }
+
+    const targetSortOrder = await (async () => {
+      const { count, error } = await sb.from('daily_plan_items').select('*', { count: 'exact', head: true }).eq('daily_plan_id', targetPlan.id).eq('item_type', 'task');
+      if(error) throw new Error(error.message);
+      return count || 0;
+    })();
+
+    const payload = {
+      daily_plan_id: targetPlan.id,
+      item_type: 'task',
+      task_id: taskId,
+      event_id: null,
+      title_snapshot: sourceItem.title_snapshot,
+      category_snapshot: sourceItem.category_snapshot,
+      area_snapshot: sourceItem.area_snapshot,
+      status: 'planned',
+      is_today_focus: sourceItem.is_today_focus,
+      is_important: sourceItem.is_important,
+      is_urgent: sourceItem.is_urgent,
+      is_highlight: sourceItem.is_highlight,
+      time_text: null,
+      note_text: null,
+      sort_order: targetSortOrder,
+      source_plan_item_id: sourceItem.id,
+      moved_to_plan_item_id: null,
+    };
+    const { data: inserted, error: insertErr } = await sb.from('daily_plan_items').insert(payload).select().single();
+    if(insertErr){
+      showPlannerInsertDebug('moveTaskToDate', payload, insertErr);
+      throw new Error(insertErr.message);
+    }
+
+    const { error: moveErr } = await sb.from('daily_plan_items').update({
+      status: 'moved',
+      is_today_focus: false,
+      is_highlight: false,
+      moved_to_plan_item_id: inserted.id,
+      updated_at: new Date().toISOString(),
+    }).eq('id', sourceItem.id);
+    if(moveErr) throw new Error(moveErr.message);
+
+    await loadCurrentDateItems();
+    closeModal();
+    renderTodos();
+    renderTodayTodos();
+    showToast('Task moved');
+  } catch (error){
+    showToast(`Error: ${error.message}`, true);
+  }
+}
+
+function closeModal(){
+  document.getElementById('modal-bg').classList.remove('open');
+  modalSaveHandler = null;
+  modalType = '';
+  document.getElementById('modal-save-btn').textContent = 'Save';
+}
+
+function bgClose(event){
+  if(event.target === document.getElementById('modal-bg')) closeModal();
+}
+
+async function boot(){
+  initShell();
+  const { url, key } = loadConfig();
+  if(url && key){
+    document.getElementById('s-url').value = url;
+    document.getElementById('s-key').value = key;
+    try{
+      sb = window.supabase.createClient(url, key);
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('app-shell').style.display = '';
+      await loadDataAndRender();
+    } catch (error){
+      document.getElementById('setup-screen').style.display = '';
+      document.getElementById('app-shell').style.display = 'none';
+    }
+  } else {
+    document.getElementById('setup-screen').style.display = '';
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

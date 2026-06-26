@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Habits Tracker</title>
+<title>Habits & Tracking</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -28,6 +28,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 
 /* ── CONTENT ── */
 .content{padding:18px 22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:calc(100vh - 53px)}
+.notice-banner{background:#fff4db;border:1px solid #f0d48a;color:#7a4c0a;border-radius:11px;padding:12px 14px;font-size:12px;line-height:1.5}
+.notice-banner strong{color:#5f3b06}
 
 /* ── METRICS ── */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
@@ -73,6 +75,16 @@ table.data-tbl tr:hover td{background:#fafbfd}
 
 /* ── CHIP ── */
 .chip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:8px;font-weight:600;font-size:11px;white-space:nowrap;border:1px solid}
+.item-meta{display:flex;flex-direction:column;gap:4px}
+.item-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.item-summary{display:flex;flex-direction:column;gap:2px}
+.item-summary strong{font-size:12px;color:#1a1f2e}
+.item-summary span{font-size:11px;color:#8492a6}
+.section-stack{display:flex;flex-direction:column;gap:16px}
+.section-block{display:flex;flex-direction:column;gap:8px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#8492a6}
+.section-count{font-size:11px;color:#97a1b3}
 
 /* ── CALENDAR CARDS ── */
 .cal-grid-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:17px}
@@ -89,10 +101,13 @@ table.data-tbl tr:hover td{background:#fafbfd}
 .cd.cdd{background:#639922;color:#fff;border-color:#639922}
 .cd.cdt{border-color:#534AB7;color:#534AB7;font-weight:600}
 .cd.cdt.cdd{border-color:#27500A;color:#fff}
+.cd.cdd-tracking{background:#5d98b3;border-color:#5d98b3;color:#fff}
+.cd.cdt.cdd-tracking{border-color:#1a5e78;color:#fff}
 .cd.cde{background:transparent;border-color:transparent;cursor:default}
 .cd.cdf{opacity:0.3;cursor:default}
 .hcard-streak{font-size:11px;color:#8492a6;margin-top:9px;display:flex;align-items:center;gap:5px}
 .hcard-streak strong{color:#1a1f2e}
+.hcard-streak .tracking-ico{color:#1a5e78}
 
 /* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.38);display:flex;align-items:center;justify-content:center;z-index:200}
@@ -103,6 +118,7 @@ table.data-tbl tr:hover td{background:#fafbfd}
 .form-group label{font-size:11px;font-weight:500;color:#5a6478;text-transform:uppercase;letter-spacing:0.04em}
 .form-group input,.form-group select{padding:8px 10px;border:1px solid #d8dce8;border-radius:7px;font-size:12.5px;color:#1a1f2e;background:#fff;outline:none;font-family:inherit}
 .form-group input:focus,.form-group select:focus{border-color:#534AB7;box-shadow:0 0 0 3px rgba(83,74,183,0.1)}
+.form-group input:disabled,.form-group select:disabled{background:#f4f6fb;color:#97a1b3;cursor:not-allowed}
 .btn-secondary{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:1px solid #d0d5e0;background:#fff;color:#1a1f2e;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit}
 .btn-secondary:hover{background:#f4f6fb}
 
@@ -209,7 +225,7 @@ table.data-tbl tr:hover td{background:#fafbfd}
     <div class="topbar-left">
       <div class="logo">
         <div class="logo-icon"><i class="ti ti-target"></i></div>
-        <span class="logo-text">Habits tracker</span>
+        <span class="logo-text">Habits & tracking</span>
       </div>
       <span class="period-hint" id="period-hint"></span>
     </div>
@@ -220,7 +236,7 @@ table.data-tbl tr:hover td{background:#fafbfd}
       </div>
       <button class="edit-btn" id="edit-btn" onclick="toggleEditMode()"><i class="ti ti-pencil" style="font-size:12px"></i> Edit</button>
       <button class="edit-btn" id="cat-btn" onclick="openCategoryModal()" style="display:none"><i class="ti ti-category" style="font-size:12px"></i> Categories</button>
-      <button class="btn-primary" onclick="openModal()"><i class="ti ti-plus"></i> New habit</button>
+      <button class="btn-primary" onclick="openModal()"><i class="ti ti-plus"></i> New item</button>
       <button class="gear-btn" onclick="showDisconnect()" title="Settings"><i class="ti ti-settings"></i></button>
     </div>
   </div>
@@ -255,6 +271,7 @@ const ICON_OPTIONS = [
 const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FALLBACK_CAT = {icon:'ti-check', chip:'rgba(136,135,128,0.13)', chipB:'rgba(136,135,128,0.28)', chipT:'#5F5E5A'};
+const DEFAULT_HABIT_TARGET = 5;
 
 // ── STATE ────────────────────────────────────────────────────────────
 let sb = null;
@@ -265,6 +282,8 @@ let entriesMap = {};
 let currentView = 'table';
 let busy = false;
 let editMode = false;
+let schemaSupportsItemTypes = true;
+let schemaMigrationError = '';
 
 function buildCats(){
   CATS = {};
@@ -277,10 +296,37 @@ function buildCats(){
 // ── HELPERS ──────────────────────────────────────────────────────────
 function fmtKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function todayKey(){ return fmtKey(new Date()); }
+function parseDateKey(key){
+  const [y,m,d] = String(key).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
 function weekKeys(){
   const t=new Date(), dow=t.getDay();
   return Array.from({length:7},(_,i)=>{ const d=new Date(t); d.setDate(t.getDate()-dow+i); return fmtKey(d); });
 }
+function rollingDayKeys(days){
+  const t = new Date();
+  return Array.from({length:days}, (_, i) => {
+    const d = new Date(t);
+    d.setDate(t.getDate() - (days - 1 - i));
+    return fmtKey(d);
+  });
+}
+function normalizeTarget(value){
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_HABIT_TARGET;
+}
+function normalizeItem(item){
+  const type = item?.type === 'tracking' ? 'tracking' : 'habit';
+  return {
+    ...item,
+    description: item?.description || '',
+    type,
+    target: type === 'habit' ? normalizeTarget(item?.target) : null,
+  };
+}
+function habitItems(){ return habits.filter(h => h.type === 'habit'); }
+function isTrackingItem(item){ return item.type === 'tracking'; }
 function getStreak(habitId){
   const logs = entriesMap[habitId] || {};
   const t=new Date(); let s=0;
@@ -290,6 +336,41 @@ function getStreak(habitId){
   }
   return s;
 }
+function countLogsForKeys(itemId, keys){
+  const logs = entriesMap[itemId] || {};
+  return keys.reduce((sum, key) => sum + (logs[key] ? 1 : 0), 0);
+}
+function countLogsThisWeek(itemId){
+  const today = todayKey();
+  return weekKeys().filter(key => key <= today).reduce((sum, key) => sum + ((entriesMap[itemId] || {})[key] ? 1 : 0), 0);
+}
+function getLastLoggedKey(itemId){
+  const logs = entriesMap[itemId] || {};
+  const keys = Object.keys(logs).filter(key => logs[key]).sort();
+  return keys.length ? keys[keys.length - 1] : '';
+}
+function formatLastLogged(itemId){
+  const key = getLastLoggedKey(itemId);
+  if(!key) return 'Not logged yet';
+  if(key === todayKey()) return 'Last logged today';
+  const date = parseDateKey(key);
+  return `Last logged on ${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}`;
+}
+function getWeeklyTargetSummary(item){
+  const completed = countLogsThisWeek(item.id);
+  return `${completed} / ${normalizeTarget(item.target)} this week`;
+}
+function getTrackingSummary(item){
+  const count = countLogsForKeys(item.id, rollingDayKeys(7));
+  return `Logged ${count} time${count === 1 ? '' : 's'} in the last 7 days`;
+}
+function targetFieldHTML(type, target){
+  const isTracking = type === 'tracking';
+  return `<div class="form-group" id="m-target-group">
+    <label>Weekly target</label>
+    <input id="m-target" type="number" min="1" step="1" value="${isTracking ? '' : normalizeTarget(target)}" ${isTracking ? 'disabled' : ''} placeholder="${DEFAULT_HABIT_TARGET}">
+  </div>`;
+}
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function showToast(msg, isError){
@@ -298,6 +379,16 @@ function showToast(msg, isError){
   el.style.background=isError?'#E24B4A':'#1a1f2e';
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'), 3000);
+}
+function requiresTypedSchema(){
+  return !schemaSupportsItemTypes;
+}
+function getSchemaWarningHTML(){
+  if(!schemaMigrationError) return '';
+  return `<div class="notice-banner"><strong>Database migration needed.</strong> Run the updated <code>setup.sql</code> in Supabase to add the <code>type</code> and <code>target</code> columns for habits and tracking logs.<br>${esc(schemaMigrationError)}</div>`;
+}
+function showSchemaMigrationToast(){
+  showToast('Run the updated setup.sql in Supabase to add the type and target columns.', true);
 }
 
 // ── CONFIG ───────────────────────────────────────────────────────────
@@ -379,10 +470,18 @@ function doDisconnect(){
 
 // ── DATA LOADING ─────────────────────────────────────────────────────
 async function loadDataAndRender(){
-  document.getElementById('main-view').innerHTML = '<div class="loading-screen"><div class="spinner"></div><span>Loading habits...</span></div>';
+  document.getElementById('main-view').innerHTML = '<div class="loading-screen"><div class="spinner"></div><span>Loading items...</span></div>';
   document.getElementById('metrics-row').innerHTML = '';
 
   try {
+    schemaSupportsItemTypes = true;
+    schemaMigrationError = '';
+    const { error: schemaErr } = await sb.from('habits').select('id,type,target').limit(1);
+    if(schemaErr){
+      schemaSupportsItemTypes = false;
+      schemaMigrationError = schemaErr.message;
+    }
+
     const { data: catData, error: cErr } = await sb
       .from('categories')
       .select('*')
@@ -400,7 +499,7 @@ async function loadDataAndRender(){
       .order('created_at', { ascending: true });
 
     if(hErr) throw new Error(hErr.message);
-    habits = habitsData || [];
+    habits = (habitsData || []).map(normalizeItem);
 
     entriesMap = {};
     for(const h of habits) entriesMap[h.id] = {};
@@ -457,17 +556,17 @@ async function toggleDay(id, key){
 }
 
 // ── CREATE HABIT ─────────────────────────────────────────────────────
-async function createHabit(name, desc, category){
+async function createItem({ name, desc, category, type, target }){
   try {
     const { data, error } = await sb.from('habits')
-      .insert({ name, description: desc, category, is_active: true })
+      .insert({ name, description: desc, category, type, target: type === 'habit' ? normalizeTarget(target) : null, is_active: true })
       .select()
       .single();
     if(error) throw new Error(error.message);
-    habits.push(data);
+    habits.push(normalizeItem(data));
     entriesMap[data.id] = {};
     render();
-    showToast('Habit created');
+    showToast(type === 'tracking' ? 'Tracking log created' : 'Habit created');
   } catch(e){
     showToast('Error: ' + e.message, true);
   }
@@ -475,7 +574,9 @@ async function createHabit(name, desc, category){
 
 // ── DELETE HABIT ─────────────────────────────────────────────────────
 async function deleteHabit(id){
-  if(!confirm('Delete this habit? Historical records will be preserved.')) return;
+  const item = habits.find(h => h.id === id);
+  if(!item) return;
+  if(!confirm(`Hide this ${item.type === 'tracking' ? 'tracking log' : 'habit'}? Historical records will be preserved.`)) return;
   try {
     const { error } = await sb.from('habits')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -484,7 +585,7 @@ async function deleteHabit(id){
     habits = habits.filter(h => h.id !== id);
     delete entriesMap[id];
     render();
-    showToast('Habit hidden');
+    showToast(item.type === 'tracking' ? 'Tracking log hidden' : 'Habit hidden');
   } catch(e){
     showToast('Error: ' + e.message, true);
   }
@@ -553,66 +654,100 @@ function render(){
 
 // ── METRICS ──────────────────────────────────────────────────────────
 function renderMetrics(){
+  const trackedHabits = habitItems();
   const today = todayKey();
-  const done = habits.filter(h => (entriesMap[h.id] || {})[today]).length;
-  const total = habits.length;
+  const done = trackedHabits.filter(h => (entriesMap[h.id] || {})[today]).length;
+  const total = trackedHabits.length;
   const pct = total ? Math.round((done/total)*100) : 0;
-  const best = habits.reduce((m, h) => Math.max(m, getStreak(h.id)), 0);
+  const best = trackedHabits.reduce((m, h) => Math.max(m, getStreak(h.id)), 0);
   const wk = weekKeys();
   const wkPast = wk.filter(k => k <= today);
-  const wkDone = wkPast.reduce((s, k) => s + habits.filter(h => (entriesMap[h.id] || {})[k]).length, 0);
+  const wkDone = wkPast.reduce((s, k) => s + trackedHabits.filter(h => (entriesMap[h.id] || {})[k]).length, 0);
   const wkMax = wkPast.length * total;
   const wkPct = wkMax ? Math.round((wkDone/wkMax)*100) : 0;
+  const progressSub = total ? (done===total&&total>0?'All done!':'Keep going') : 'Tracking logs are shown below';
   document.getElementById('metrics-row').innerHTML = `
-    <div class="mc"><div class="mc-label">Done today</div><div class="mc-value">${done} / ${total}</div><div class="mc-sub">${pct}% of habits</div></div>
-    <div class="mc"><div class="mc-label">Today's progress</div><div class="mc-value" style="color:${pct===100?'#0f6e56':'#1a1f2e'}">${pct}%</div><div class="mc-sub">${done===total&&total>0?'All done!':'Keep going'}</div></div>
+    <div class="mc"><div class="mc-label">Completed today</div><div class="mc-value">${done} / ${total}</div><div class="mc-sub">${total ? `${pct}% of habits` : 'No habits yet'}</div></div>
+    <div class="mc"><div class="mc-label">Today's progress</div><div class="mc-value" style="color:${pct===100&&total>0?'#0f6e56':'#1a1f2e'}">${pct}%</div><div class="mc-sub">${progressSub}</div></div>
     <div class="mc"><div class="mc-label">Best streak</div><div class="mc-value">${best}</div><div class="mc-sub">days in a row</div></div>
-    <div class="mc"><div class="mc-label">This week</div><div class="mc-value">${wkPct}%</div><div class="mc-sub">${wkDone} of ${wkMax} completions</div></div>`;
+    <div class="mc"><div class="mc-label">Weekly check-ins</div><div class="mc-value">${wkPct}%</div><div class="mc-sub">${wkMax ? `${wkDone} of ${wkMax} habit check-ins` : 'Tracking logs excluded'}</div></div>`;
 }
 
 // ── TABLE VIEW ───────────────────────────────────────────────────────
 function renderTable(){
   if(!habits.length){ document.getElementById('main-view').innerHTML = emptyHTML(); return; }
+  const habitRows = renderTableSectionRows(habitItems(), false);
+  const trackingRows = renderTableSectionRows(habits.filter(h => h.type === 'tracking'), true);
+  const sections = [
+    renderTableSection('Habits', habitItems().length, habitRows),
+    renderTableSection('Tracking logs', habits.filter(h => h.type === 'tracking').length, trackingRows),
+  ].join('');
+  document.getElementById('main-view').innerHTML = `
+    ${getSchemaWarningHTML()}
+    <div class="section-stack">${sections}</div>`;
+}
+
+function renderTableSectionRows(items, isTrackingSection){
   const today = todayKey(), week = weekKeys();
-  const rows = habits.map((h, idx) => {
+  return items.map((h) => {
     const cat = CATS[h.category] || FALLBACK_CAT;
     const logs = entriesMap[h.id] || {};
     const isDone = !!logs[today];
     const streak = getStreak(h.id);
+    const summaryPrimary = isTrackingSection ? getTrackingSummary(h) : getWeeklyTargetSummary(h);
+    const summarySecondary = isTrackingSection ? formatLastLogged(h.id) : `${streak} day${streak === 1 ? '' : 's'} streak`;
     const dots = week.map((k, i) => {
       const d = !!logs[k], isT = k===today, isFut = k>today;
       let cls = 'wd'; if(d) cls += ' wdd'; if(isT) cls += ' wdt'; if(isFut) cls += ' wdf';
       const click = isFut ? '' : `onclick="toggleDay('${h.id}','${k}')"`;
-      return `<div class="${cls}" ${click} title="${isFut?DOW[i]:(d?DOW[i]+' — undo':DOW[i]+' — mark done')}"></div>`;
+      return `<div class="${cls}" ${click} title="${isFut ? DOW[i] : (d ? `${DOW[i]} — ${isTrackingSection ? 'remove log' : 'undo'}` : `${DOW[i]} — ${isTrackingSection ? 'log date' : 'mark done'}`)}"></div>`;
     }).join('');
     const cs = `background:${cat.chip};border-color:${cat.chipB};color:${cat.chipT}`;
+    const globalIdx = habits.findIndex(item => item.id === h.id);
     const moveCol = editMode ? `<td><div class="move-col">
-      <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${idx===0?'disabled':''}  title="Move up"><i class="ti ti-chevron-up"></i></button>
-      <button class="move-btn" onclick="moveHabit('${h.id}',1)"  ${idx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
+      <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${globalIdx===0?'disabled':''}  title="Move up"><i class="ti ti-chevron-up"></i></button>
+      <button class="move-btn" onclick="moveHabit('${h.id}',1)"  ${globalIdx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
     </div></td>` : '';
     const delCol = editMode ? `<td><button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:15px;padding:3px 5px;border-radius:5px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button></td>` : '';
     return `<tr>
       ${moveCol}
-      <td><div style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}${editMode?`<button class="inline-edit-btn" onclick="openEditHabitModal('${h.id}')" title="Edit habit"><i class="ti ti-pencil"></i></button>`:''}</div></td>
+      <td><div class="item-meta"><div class="item-name-row" style="font-weight:600;white-space:nowrap"><i class="ti ${cat.icon}" style="font-size:14px;color:${cat.chipT}"></i>${esc(h.name)}${editMode?`<button class="inline-edit-btn" onclick="openEditHabitModal('${h.id}')" title="Edit item"><i class="ti ti-pencil"></i></button>`:''}</div></div></td>
       <td style="color:#5a6478;font-size:12px">${esc(h.description||'')}</td>
-      <td><button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button></td>
+      <td><button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')">${isDone?`<i class="ti ti-check" style="font-size:11px"></i> ${isTrackingSection ? 'Logged' : 'Done'}`:(isTrackingSection ? 'Log today' : 'Mark done')}</button></td>
       <td><div class="week-col"><div class="week-lbl-row">${DOW.map(d=>`<span class="wl">${d}</span>`).join('')}</div><div class="week-dots">${dots}</div></div></td>
-      <td><div class="streak-cell"><span style="color:#E24B4A">&#x1f525;</span>${streak}<span class="lbl">days</span></div></td>
+      <td><div class="item-summary"><strong>${esc(summaryPrimary)}</strong><span>${esc(summarySecondary)}</span></div></td>
       <td><span class="chip" style="${cs}">${esc(h.category)}</span></td>
       ${delCol}
     </tr>`;
   }).join('');
+}
+
+function renderTableSection(title, count, rows){
   const thMove = editMode ? '<th></th>' : '';
   const thDel = editMode ? '<th></th>' : '';
-  document.getElementById('main-view').innerHTML = `
+  if(!count){
+    return `<div class="section-block">
+      <div class="section-head">
+        <div class="section-title">${esc(title)}</div>
+        <div class="section-count">0 items</div>
+      </div>
+      <div class="card"><div class="empty-state" style="padding:22px 18px"><p>${title === 'Habits' ? 'No habits yet.' : 'No tracking logs yet.'}</p></div></div>
+    </div>`;
+  }
+  return `<div class="section-block">
+      <div class="section-head">
+        <div class="section-title">${esc(title)}</div>
+        <div class="section-count">${count} item${count === 1 ? '' : 's'}</div>
+      </div>
     <div class="card" style="padding:0 0 4px">
       <div class="tbl-wrap">
         <table class="data-tbl">
-          <thead><tr>${thMove}<th>Habit</th><th>Description</th><th>Done?</th><th>Current week</th><th>Streak</th><th>Category</th>${thDel}</tr></thead>
+          <thead><tr>${thMove}<th>Item</th><th>Description</th><th>Today</th><th>Current week</th><th>Summary</th><th>Category</th>${thDel}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 // ── CALENDAR VIEW ────────────────────────────────────────────────────
@@ -622,7 +757,24 @@ function renderCalendar(){
   const dim = new Date(year, month+1, 0).getDate();
   const firstDow = new Date(year, month, 1).getDay();
   const today = todayKey();
-  const cards = habits.map((h, idx) => {
+  const sections = [
+    renderCalendarSection('Habits', habitItems(), false, year, month, dim, firstDow, today),
+    renderCalendarSection('Tracking logs', habits.filter(h => h.type === 'tracking'), true, year, month, dim, firstDow, today),
+  ].join('');
+  document.getElementById('main-view').innerHTML = `${getSchemaWarningHTML()}<div class="section-stack">${sections}</div>`;
+}
+
+function renderCalendarSection(title, items, isTrackingSection, year, month, dim, firstDow, today){
+  if(!items.length){
+    return `<div class="section-block">
+      <div class="section-head">
+        <div class="section-title">${esc(title)}</div>
+        <div class="section-count">0 items</div>
+      </div>
+      <div class="card"><div class="empty-state" style="padding:22px 18px"><p>${title === 'Habits' ? 'No habits yet.' : 'No tracking logs yet.'}</p></div></div>
+    </div>`;
+  }
+  const cards = items.map((h) => {
     const cat = CATS[h.category] || FALLBACK_CAT;
     const logs = entriesMap[h.id] || {};
     const streak = getStreak(h.id);
@@ -634,55 +786,88 @@ function renderCalendar(){
     for(let d=1; d<=dim; d++){
       const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const done = !!logs[key], isT = key===today, isFut = key>today;
-      let cls = 'cd'; if(done) cls += ' cdd'; if(isT) cls += ' cdt'; if(isFut) cls += ' cdf';
+      let cls = 'cd';
+      if(done) cls += isTrackingSection ? ' cdd-tracking' : ' cdd';
+      if(isT) cls += ' cdt';
+      if(isFut) cls += ' cdf';
       const click = isFut ? '' : `onclick="toggleDay('${h.id}','${key}')"`;
-      cells += `<div class="${cls}" ${click} title="${isFut?'':(done?'Undo':'Mark done')}">${d}</div>`;
+      cells += `<div class="${cls}" ${click} title="${isFut?'':(done?(isTrackingSection ? 'Remove log' : 'Undo'):(isTrackingSection ? 'Log date' : 'Mark done'))}">${d}</div>`;
     }
+    const globalIdx = habits.findIndex(item => item.id === h.id);
     return `<div class="hcard">
       <div class="hcard-hdr">
         <div class="hcard-title"><i class="ti ${cat.icon}" style="color:${cat.chipT}"></i>${esc(h.name)}${editMode?`<button class="inline-edit-btn" onclick="openEditHabitModal('${h.id}')" title="Edit"><i class="ti ti-pencil"></i></button>`:''}</div>
-        <button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')" style="font-size:11px;padding:3px 9px">${isDone?'<i class="ti ti-check" style="font-size:11px"></i> Done':'Mark done'}</button>
+        <button class="done-btn${isDone?' is-done':''}" onclick="toggleDay('${h.id}','${today}')" style="font-size:11px;padding:3px 9px">${isDone?`<i class="ti ti-check" style="font-size:11px"></i> ${isTrackingSection ? 'Logged' : 'Done'}`:(isTrackingSection ? 'Log today' : 'Mark done')}</button>
       </div>
       <div class="cal-lbl">${MONTHS_SHORT[month]} ${year} &nbsp;&middot;&nbsp; <span class="chip" style="${cs};font-size:10px;padding:1px 7px">${esc(h.category)}</span></div>
       <div class="cal-dow-row">${dowRow}</div>
       <div class="cal-grid">${cells}</div>
-      <div class="hcard-streak"><span style="color:#E24B4A">&#x1f525;</span><strong>${streak}</strong> day streak
+      <div class="hcard-streak">${isTrackingSection ? `<span class="tracking-ico"><i class="ti ti-clock"></i></span><strong>${esc(getTrackingSummary(h))}</strong> ${esc(formatLastLogged(h.id))}` : `<span style="color:#E24B4A">&#x1f525;</span><strong>${esc(getWeeklyTargetSummary(h))}</strong> ${streak} day${streak === 1 ? '' : 's'} streak`}
         ${editMode ? `<div class="hcard-edit-bar">
-          <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${idx===0?'disabled':''} title="Move up"><i class="ti ti-chevron-up"></i></button>
-          <button class="move-btn" onclick="moveHabit('${h.id}',1)" ${idx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
+          <button class="move-btn" onclick="moveHabit('${h.id}',-1)" ${globalIdx===0?'disabled':''} title="Move up"><i class="ti ti-chevron-up"></i></button>
+          <button class="move-btn" onclick="moveHabit('${h.id}',1)" ${globalIdx===habits.length-1?'disabled':''} title="Move down"><i class="ti ti-chevron-down"></i></button>
           <button onclick="deleteHabit('${h.id}')" style="background:none;border:none;cursor:pointer;color:#c8cfe0;font-size:13px;padding:2px" title="Delete" onmouseover="this.style.color='#E24B4A'" onmouseout="this.style.color='#c8cfe0'"><i class="ti ti-trash"></i></button>
         </div>` : ''}
       </div>
     </div>`;
   }).join('');
-  document.getElementById('main-view').innerHTML = `<div class="cal-grid-wrap">${cards}</div>`;
+  return `<div class="section-block">
+    <div class="section-head">
+      <div class="section-title">${esc(title)}</div>
+      <div class="section-count">${items.length} item${items.length === 1 ? '' : 's'}</div>
+    </div>
+    <div class="cal-grid-wrap">${cards}</div>
+  </div>`;
 }
 
 function emptyHTML(){
-  return `<div class="empty-state"><i class="ti ti-target"></i><p>No habits yet — click <strong>New habit</strong> to add one.</p></div>`;
+  return `${getSchemaWarningHTML()}<div class="empty-state"><i class="ti ti-target"></i><p>No items yet — click <strong>New item</strong> to add a habit or tracking log.</p></div>`;
 }
 
 // ── HABIT MODAL (new + edit) ─────────────────────────────────────────
 function catOptions(selected){
   return categories.map(c => `<option${c.name===selected?' selected':''}>${esc(c.name)}</option>`).join('');
 }
+function typeOptions(selected){
+  return `
+    <option value="habit"${selected === 'habit' ? ' selected' : ''}>Habit</option>
+    <option value="tracking"${selected === 'tracking' ? ' selected' : ''}>Tracking log</option>
+  `;
+}
+function syncTypeFields(){
+  const typeEl = document.getElementById('m-type');
+  const group = document.getElementById('m-target-group');
+  const input = document.getElementById('m-target');
+  if(!typeEl || !group || !input) return;
+  const isTracking = typeEl.value === 'tracking';
+  group.style.display = isTracking ? 'none' : '';
+  input.disabled = isTracking;
+  if(isTracking){
+    input.value = '';
+  } else if(!input.value){
+    input.value = String(DEFAULT_HABIT_TARGET);
+  }
+}
 
 function openModal(){
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" role="dialog" aria-modal="true">
-        <h2><i class="ti ti-plus" style="font-size:14px;color:#534AB7"></i>New habit</h2>
-        <div class="form-group"><label>Habit name</label><input id="m-name" type="text" placeholder="e.g. Morning run" maxlength="50" autocomplete="off"></div>
+        <h2><i class="ti ti-plus" style="font-size:14px;color:#534AB7"></i>New item</h2>
+        <div class="form-group"><label>Type</label><select id="m-type" onchange="syncTypeFields()">${typeOptions('habit')}</select></div>
+        <div class="form-group"><label>Name</label><input id="m-name" type="text" placeholder="e.g. Morning run" maxlength="50" autocomplete="off"></div>
         <div class="form-group"><label>Description <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="m-desc" type="text" placeholder="e.g. Run for 20 minutes" maxlength="100" autocomplete="off"></div>
+        ${targetFieldHTML('habit', DEFAULT_HABIT_TARGET)}
         <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOptions('')}</select></div>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-          <button class="btn-primary" id="m-save" onclick="saveModal()"><i class="ti ti-check"></i> Save habit</button>
+          <button class="btn-primary" id="m-save" onclick="saveModal()"><i class="ti ti-check"></i> Save item</button>
         </div>
       </div>
     </div>`;
   setTimeout(() => {
     const el = document.getElementById('m-name');
+    syncTypeFields();
     if(el){ el.focus(); el.addEventListener('keydown', e => { if(e.key==='Enter') saveModal(); }); }
   }, 60);
 }
@@ -693,9 +878,11 @@ function openEditHabitModal(id){
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" role="dialog" aria-modal="true">
-        <h2><i class="ti ti-pencil" style="font-size:14px;color:#534AB7"></i>Edit habit</h2>
-        <div class="form-group"><label>Habit name</label><input id="m-name" type="text" value="${esc(h.name)}" maxlength="50" autocomplete="off"></div>
+        <h2><i class="ti ti-pencil" style="font-size:14px;color:#534AB7"></i>Edit item</h2>
+        <div class="form-group"><label>Type</label><select id="m-type" onchange="syncTypeFields()">${typeOptions(h.type)}</select></div>
+        <div class="form-group"><label>Name</label><input id="m-name" type="text" value="${esc(h.name)}" maxlength="50" autocomplete="off"></div>
         <div class="form-group"><label>Description <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label><input id="m-desc" type="text" value="${esc(h.description||'')}" maxlength="100" autocomplete="off"></div>
+        ${targetFieldHTML(h.type, h.target)}
         <div class="form-group" style="margin-bottom:0"><label>Category</label><select id="m-cat">${catOptions(h.category)}</select></div>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeModal()">Cancel</button>
@@ -703,12 +890,25 @@ function openEditHabitModal(id){
         </div>
       </div>
     </div>`;
-  setTimeout(() => document.getElementById('m-name')?.focus(), 60);
+  setTimeout(() => {
+    syncTypeFields();
+    document.getElementById('m-name')?.focus();
+  }, 60);
 }
 
 async function saveEditHabit(id){
   const name = (document.getElementById('m-name').value || '').trim();
   if(!name){ document.getElementById('m-name').focus(); return; }
+  const type = document.getElementById('m-type').value === 'tracking' ? 'tracking' : 'habit';
+  const targetValue = document.getElementById('m-target').value;
+  if(requiresTypedSchema()){
+    showSchemaMigrationToast();
+    return;
+  }
+  if(type === 'habit' && (!targetValue || Number(targetValue) < 1)){
+    document.getElementById('m-target').focus();
+    return;
+  }
   const btn = document.getElementById('m-save');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px"></div> Saving...';
@@ -716,16 +916,18 @@ async function saveEditHabit(id){
     const updates = {
       name,
       description: (document.getElementById('m-desc').value || '').trim(),
+      type,
+      target: type === 'habit' ? normalizeTarget(targetValue) : null,
       category: document.getElementById('m-cat').value,
       updated_at: new Date().toISOString()
     };
     const { error } = await sb.from('habits').update(updates).eq('id', id);
     if(error) throw new Error(error.message);
     const h = habits.find(x => x.id === id);
-    if(h) Object.assign(h, updates);
+    if(h) Object.assign(h, normalizeItem({ ...h, ...updates }));
     closeModal();
     render();
-    showToast('Habit updated');
+    showToast(type === 'tracking' ? 'Tracking log updated' : 'Habit updated');
   } catch(e){
     showToast('Error: ' + e.message, true);
     btn.disabled = false;
@@ -738,15 +940,27 @@ function closeModal(){ document.getElementById('modal-container').innerHTML = ''
 async function saveModal(){
   const name = (document.getElementById('m-name').value || '').trim();
   if(!name){ document.getElementById('m-name').focus(); return; }
+  const type = document.getElementById('m-type').value === 'tracking' ? 'tracking' : 'habit';
+  const targetValue = document.getElementById('m-target').value;
+  if(requiresTypedSchema()){
+    showSchemaMigrationToast();
+    return;
+  }
+  if(type === 'habit' && (!targetValue || Number(targetValue) < 1)){
+    document.getElementById('m-target').focus();
+    return;
+  }
   const btn = document.getElementById('m-save');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px"></div> Saving...';
 
-  await createHabit(
+  await createItem({
     name,
-    (document.getElementById('m-desc').value || '').trim(),
-    document.getElementById('m-cat').value
-  );
+    desc: (document.getElementById('m-desc').value || '').trim(),
+    category: document.getElementById('m-cat').value,
+    type,
+    target: type === 'habit' ? targetValue : null,
+  });
   closeModal();
 }
 
@@ -872,7 +1086,7 @@ async function deleteCategory(id){
   if(!cat) return;
   const inUse = habits.filter(h => h.category === cat.name).length;
   const msg = inUse
-    ? `"${cat.name}" is used by ${inUse} habit(s). They will be moved to the first available category. Delete?`
+    ? `"${cat.name}" is used by ${inUse} item(s). They will be moved to the first available category. Delete?`
     : `Delete category "${cat.name}"?`;
   if(!confirm(msg)) return;
   try {
